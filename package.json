@@ -1,0 +1,42 @@
+{
+  "name": "factory-management-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Factory Management Application with React Native (Mobile) and React (Web)",
+  "workspaces": [
+    "packages/*",
+    "backend"
+  ],
+  "scripts": {
+    "dev:mobile": "cd packages/mobile && npm run start",
+    "dev:web": "cd packages/web && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build:shared": "cd packages/shared && npm run build",
+    "build:web": "cd packages/web && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "build:all": "npm run build:shared && npm run build:backend && npm run build:web",
+    "test": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/factory-management-app.git"
+  },
+  "keywords": [
+    "factory",
+    "management",
+    "react",
+    "typescript",
+    "express",
+    "sqlite"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+

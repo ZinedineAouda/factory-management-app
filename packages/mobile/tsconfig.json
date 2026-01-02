@@ -1,0 +1,12 @@
+{
+  "extends": "@tsconfig/react-native/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": "./",
+    "paths": {
+      "@factory-app/shared": ["../shared/src"]
+    }
+  },
+  "include": ["src/**/*", "App.tsx", "index.js"]
+}
+

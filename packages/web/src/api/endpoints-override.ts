@@ -1,0 +1,116 @@
+// Override API endpoints to use Vite environment variables
+// Use relative URL in development (Vite proxy) or absolute URL from env
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
+
+// Re-export with correct base URL
+export const ApiEndpoints = {
+  AUTH: {
+    LOGIN: `${API_BASE_URL}/auth/login`,
+    REGISTER: `${API_BASE_URL}/auth/register`,
+    REFRESH: `${API_BASE_URL}/auth/refresh`,
+    LOGOUT: `${API_BASE_URL}/auth/logout`,
+    VALIDATE_CODE: (code: string) => `${API_BASE_URL}/auth/validate-code/${code}`,
+  },
+  TASKS: {
+    LIST: `${API_BASE_URL}/tasks`,
+    DETAIL: (id: string) => `${API_BASE_URL}/tasks/${id}`,
+    CREATE: `${API_BASE_URL}/tasks`,
+    UPDATE: (id: string) => `${API_BASE_URL}/tasks/${id}`,
+    DELETE: (id: string) => `${API_BASE_URL}/tasks/${id}`,
+    UPDATE_PROGRESS: (id: string) => `${API_BASE_URL}/tasks/${id}/progress`,
+    ADD_UPDATE: (id: string) => `${API_BASE_URL}/tasks/${id}/updates`,
+  },
+  DEPARTMENTS: {
+    LIST: `${API_BASE_URL}/departments`,
+  },
+  REGISTRATION_CODES: {
+    GENERATE: `${API_BASE_URL}/admin/registration-codes/generate`,
+    LIST: `${API_BASE_URL}/admin/registration-codes`,
+    DELETE: (id: string) => `${API_BASE_URL}/admin/registration-codes/${id}`,
+    REVOKE: (id: string) => `${API_BASE_URL}/admin/registration-codes/${id}/revoke`,
+  },
+  USERS: {
+    LIST: `${API_BASE_URL}/auth/users`,
+    UPDATE_DEPARTMENT: (id: string) => `${API_BASE_URL}/auth/users/${id}/department`,
+    UPDATE_GROUP: (id: string) => `${API_BASE_URL}/auth/users/${id}/group`,
+    UPDATE_ROLE: (id: string) => `${API_BASE_URL}/auth/users/${id}/role`,
+    STATISTICS: (id: string) => `${API_BASE_URL}/auth/users/${id}/statistics`,
+    DELETE: (id: string) => `${API_BASE_URL}/auth/users/${id}`,
+  },
+  GROUPS: {
+    LIST: `${API_BASE_URL}/groups`,
+    CREATE: `${API_BASE_URL}/groups`,
+    UPDATE: (id: string) => `${API_BASE_URL}/groups/${id}`,
+    DELETE: (id: string) => `${API_BASE_URL}/groups/${id}`,
+  },
+  PRODUCTS: {
+    LIST: `${API_BASE_URL}/products`,
+    CREATE: `${API_BASE_URL}/products`,
+    UPDATE: (id: string) => `${API_BASE_URL}/products/${id}`,
+    DELETE: (id: string) => `${API_BASE_URL}/products/${id}`,
+  },
+  PRODUCT_DELIVERIES: {
+    CREATE: `${API_BASE_URL}/product-deliveries`,
+    LIST: `${API_BASE_URL}/product-deliveries`,
+    MY_DELIVERIES: `${API_BASE_URL}/product-deliveries/my-deliveries`,
+    BY_PRODUCT: (productId: string) => `${API_BASE_URL}/product-deliveries/product/${productId}`,
+  },
+  MAINTENANCE_TASKS: {
+    CREATE: `${API_BASE_URL}/maintenance-tasks`,
+    LIST: `${API_BASE_URL}/maintenance-tasks`,
+    DETAIL: (id: string) => `${API_BASE_URL}/maintenance-tasks/${id}`,
+    UPDATE: (id: string) => `${API_BASE_URL}/maintenance-tasks/${id}`,
+    UPDATE_PROGRESS: (id: string) => `${API_BASE_URL}/maintenance-tasks/${id}/progress`,
+  },
+  ANALYTICS: {
+    PRODUCTION: `${API_BASE_URL}/analytics/production`,
+    MAINTENANCE: `${API_BASE_URL}/analytics/maintenance`,
+    PERSONAL: `${API_BASE_URL}/analytics/personal`,
+    GROUPS: `${API_BASE_URL}/analytics/groups`,
+    DELIVERY_DROPS: `${API_BASE_URL}/analytics/delivery-drops`,
+    KPIS: `${API_BASE_URL}/analytics/kpis`,
+    REFRESH: `${API_BASE_URL}/analytics/refresh`,
+  },
+  PROFILE: {
+    GET: (id: string) => `${API_BASE_URL}/profiles/${id}`,
+    UPDATE: (id: string) => `${API_BASE_URL}/profiles/${id}`,
+  },
+  REPORTS: {
+    CREATE: `${API_BASE_URL}/reports`,
+    LIST: `${API_BASE_URL}/reports`,
+    BY_DEPARTMENT: (departmentId: string) => `${API_BASE_URL}/reports/department/${departmentId}`,
+    LINK_TO_DROP: (reportId: string) => `${API_BASE_URL}/reports/${reportId}/link-to-drop`,
+  },
+  REPORTS_PAGE: {
+    LIST: `${API_BASE_URL}/reports`,
+  },
+  SHIFTS: {
+    LIST: `${API_BASE_URL}/shifts`,
+    CREATE: `${API_BASE_URL}/shifts`,
+    UPDATE: (id: string) => `${API_BASE_URL}/shifts/${id}`,
+    DELETE: (id: string) => `${API_BASE_URL}/shifts/${id}`,
+    DETAIL: (id: string) => `${API_BASE_URL}/shifts/${id}`,
+  },
+  ROLE_PERMISSIONS: {
+    LIST: `${API_BASE_URL}/role-permissions`,
+    GET: (role: string) => `${API_BASE_URL}/role-permissions/${role}`,
+    CREATE: `${API_BASE_URL}/role-permissions`,
+    UPDATE: (role: string) => `${API_BASE_URL}/role-permissions/${role}`,
+    DELETE: (role: string) => `${API_BASE_URL}/role-permissions/${role}`,
+  },
+  SETTINGS: {
+    PREFERENCES: `${API_BASE_URL}/settings/preferences`,
+    CHANGE_PASSWORD: `${API_BASE_URL}/settings/password`,
+    CHANGE_USERNAME: `${API_BASE_URL}/settings/username`,
+  },
+  NOTIFICATIONS: {
+    LIST: `${API_BASE_URL}/notifications`,
+    UNREAD_COUNT: `${API_BASE_URL}/notifications/unread-count`,
+    MARK_READ: (id: string) => `${API_BASE_URL}/notifications/${id}/read`,
+    MARK_ALL_READ: `${API_BASE_URL}/notifications/read-all`,
+  },
+  ACTIVITY_LOG: {
+    LIST: `${API_BASE_URL}/activity-log`,
+    CLEAR: `${API_BASE_URL}/activity-log`,
+  },
+} as const;
