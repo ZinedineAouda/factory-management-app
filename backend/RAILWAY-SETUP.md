@@ -9,17 +9,14 @@
 
 2. **Configure Service** (IMPORTANT!)
    
-   **Option A (Recommended): Set Root Directory**
+   **Set Root Directory to `backend`** (REQUIRED)
    - Go to your service → Settings → Service
    - Find "Root Directory" setting
    - Set it to: `backend`
+   - Click "Save"
    - This tells Railway to run all commands from the backend folder
-   - Railway will use the configuration files in `backend/` directory
-   
-   **Option B (Fallback): Use Root Directory**
-   - If you don't set Root Directory, Railway will use root-level config files
-   - The root-level `railway.json` and `nixpacks.toml` will handle the build
-   - This works but Option A is cleaner
+   - Railway will auto-detect Node.js and use Nixpacks builder
+   - No Docker needed - Railway handles everything!
 
 3. **Set Environment Variables**
    In Railway dashboard → Variables tab, add:

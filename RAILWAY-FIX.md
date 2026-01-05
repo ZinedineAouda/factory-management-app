@@ -1,7 +1,11 @@
 # 🚨 Railway Build Error Fix
 
+## IMPORTANT: Use Root Directory Setting
+
+**The easiest fix:** Set Root Directory to `backend` in Railway UI (Settings → Service → Root Directory).
+
 ## The Problem
-Railway is trying to run `npm run build` from the root directory, but the build script is in `backend/package.json`.
+Railway might try to run commands from the wrong directory, or try to use Docker when you don't need it.
 
 ## Solution Options
 
@@ -24,7 +28,6 @@ If you can't set Root Directory (or if it's already set and not working), the ro
 
 - `railway.json` at root - Contains build command: `cd backend && npm install && npm run build`
 - `nixpacks.toml` at root - Alternative build configuration
-- `Dockerfile` at root - Docker-based deployment
 
 These files will automatically change to the backend directory before running commands.
 
