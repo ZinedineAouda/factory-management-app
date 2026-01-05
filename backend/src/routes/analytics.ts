@@ -158,7 +158,7 @@ router.get('/groups', authenticate, requireRole(['admin']), async (req: AuthRequ
     const groupStats = groupPerformance.map((group: any) => {
       const efficiency = group.active_workers > 0 
         ? (group.total_deliveries / group.active_workers).toFixed(2)
-        : 0;
+        : '0';
       return {
         ...group,
         efficiency_score: parseFloat(efficiency),

@@ -243,7 +243,7 @@ router.post('/', authenticate, requireRole(['admin', 'operator', 'leader']), asy
 router.put('/:id', authenticate, requireRole(['admin', 'operator']), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { title, description, additionalInfo, departmentId, groupId, priority, deadline, status, productId, assignedTo, taskType } = req.body;
+    const { title, description, additionalInfo, departmentId, groupId, priority, deadline, status, productId, assignedTo, taskType, departmentType } = req.body;
     const userRole = req.user!.role;
 
     // Get current task
