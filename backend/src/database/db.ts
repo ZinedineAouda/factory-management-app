@@ -247,13 +247,29 @@ export const initDatabase = async () => {
   `);
 
   // Analytics cache table
+  // Check if table exists and has correct schema, recreate if needed
+  try {
+    const tableInfo = await dbAll(`PRAGMA table_info(analytics_cache)`);
+    const hasMetricType = tableInfo.some((col: any) => col.name === 'metric_type');
+    
+    if (tableInfo.length > 0 && !hasMetricType) {
+      // Table exists but has wrong schema - drop and recreate (cache data can be regenerated)
+      await dbRun(`DROP TABLE analytics_cache`);
+    }
+  } catch (error) {
+    // Table doesn't exist, will be created below
+  }
+  
   await dbRun(`
     CREATE TABLE IF NOT EXISTS analytics_cache (
       id TEXT PRIMARY KEY,
-      cache_key TEXT NOT NULL UNIQUE,
-      cache_data TEXT NOT NULL,
-      expires_at DATETIME NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      metric_type TEXT NOT NULL,
+      metric_key TEXT NOT NULL,
+      metric_value TEXT NOT NULL,
+      period_start DATETIME,
+      period_end DATETIME,
+      calculated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(metric_type, metric_key)
     )
   `);
 
