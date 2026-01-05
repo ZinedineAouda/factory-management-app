@@ -124,8 +124,10 @@ export const initDatabase = async () => {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       description TEXT,
+      additional_info TEXT,
       status TEXT DEFAULT 'pending',
       priority TEXT DEFAULT 'medium',
+      deadline DATETIME,
       created_by TEXT NOT NULL,
       assigned_to TEXT,
       department_id TEXT,
@@ -154,6 +156,8 @@ export const initDatabase = async () => {
   await dbRun(`ALTER TABLE tasks ADD COLUMN started_at DATETIME`).catch(() => {});
   await dbRun(`ALTER TABLE tasks ADD COLUMN completed_at DATETIME`).catch(() => {});
   await dbRun(`ALTER TABLE tasks ADD COLUMN department_type TEXT CHECK(department_type IN ('production', 'maintenance', 'quality') OR department_type IS NULL)`).catch(() => {});
+  await dbRun(`ALTER TABLE tasks ADD COLUMN deadline DATETIME`).catch(() => {});
+  await dbRun(`ALTER TABLE tasks ADD COLUMN additional_info TEXT`).catch(() => {});
 
   // Task updates table
   await dbRun(`
