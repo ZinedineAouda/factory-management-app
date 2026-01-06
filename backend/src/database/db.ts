@@ -123,8 +123,25 @@ export const initDatabase = async () => {
   `);
   
   // Add missing columns if they don't exist (migration)
-  await dbRun(`ALTER TABLE registration_codes ADD COLUMN expires_at DATETIME`).catch(() => {});
-  await dbRun(`ALTER TABLE registration_codes ADD COLUMN is_used INTEGER DEFAULT 0`).catch(() => {});
+  try {
+    await dbRun(`ALTER TABLE registration_codes ADD COLUMN expires_at DATETIME`);
+    console.log('✅ Added expires_at column to registration_codes');
+  } catch (err: any) {
+    // Column might already exist
+    if (!err.message.includes('duplicate column')) {
+      console.log('⚠️  Could not add expires_at column:', err.message);
+    }
+  }
+  
+  try {
+    await dbRun(`ALTER TABLE registration_codes ADD COLUMN is_used INTEGER DEFAULT 0`);
+    console.log('✅ Added is_used column to registration_codes');
+  } catch (err: any) {
+    // Column might already exist
+    if (!err.message.includes('duplicate column')) {
+      console.log('⚠️  Could not add is_used column:', err.message);
+    }
+  }
 
   // Tasks table
   await dbRun(`

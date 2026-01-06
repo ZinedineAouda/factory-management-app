@@ -46,10 +46,15 @@ router.post('/generate', authenticate, requireRole(['admin']), async (req: AuthR
 
         const id = uuidv4();
         // No role in registration code - admin will assign role after registration
+        // Ensure we have a valid user ID
+        if (!req.user || !req.user.id) {
+          throw new Error('User authentication required');
+        }
+        
         await dbRun(
-          `INSERT INTO registration_codes (id, code, role, expires_at, created_by)
-           VALUES (?, ?, ?, ?, ?)`,
-          [id, code, null, formattedExpiresAt, req.user!.id]
+          `INSERT INTO registration_codes (id, code, role, expires_at, is_used, created_by)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [id, code, null, formattedExpiresAt, 0, req.user.id]
         );
 
         codes.push({
@@ -67,13 +72,25 @@ router.post('/generate', authenticate, requireRole(['admin']), async (req: AuthR
     } catch (insertError: any) {
       await dbRun('ROLLBACK').catch(() => {});
       console.error('Error generating codes:', insertError);
+      console.error('Error details:', {
+        message: insertError.message,
+        code: insertError.code,
+        errno: insertError.errno,
+        stack: insertError.stack
+      });
       throw insertError;
     }
   } catch (error: any) {
     console.error('Generate codes error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      stack: error.stack
+    });
     res.status(500).json({ 
       error: 'Failed to generate codes',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' ? error.message : error.message || 'Unknown error'
     });
   }
 });
