@@ -117,8 +117,8 @@ export const initDatabase = async () => {
       used_by TEXT,
       used_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (created_by) REFERENCES users(id),
-      FOREIGN KEY (used_by) REFERENCES users(id)
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (used_by) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
   

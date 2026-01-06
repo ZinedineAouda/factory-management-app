@@ -51,10 +51,32 @@ router.post('/generate', authenticate, requireRole(['admin']), async (req: AuthR
           throw new Error('User authentication required');
         }
         
+        // Verify user exists in database and get the actual user ID
+        // This ensures foreign key constraint is satisfied
+        let createdByUserId: string | null = null;
+        
+        // First try to find user by ID from JWT
+        const userById = await dbGet('SELECT id FROM users WHERE id = ?', [req.user.id]);
+        if (userById) {
+          createdByUserId = userById.id;
+        } else if (req.user.username) {
+          // Fallback: try to find by username
+          const userByUsername = await dbGet('SELECT id FROM users WHERE username = ?', [req.user.username]);
+          if (userByUsername) {
+            createdByUserId = userByUsername.id;
+          }
+        }
+        
+        // If user still not found, log warning but allow insertion with NULL
+        // (foreign key allows NULL due to ON DELETE SET NULL)
+        if (!createdByUserId) {
+          console.warn(`⚠️  User ${req.user.id} (${req.user.username}) not found in database, creating code without created_by`);
+        }
+        
         await dbRun(
           `INSERT INTO registration_codes (id, code, role, expires_at, is_used, created_by)
            VALUES (?, ?, ?, ?, ?, ?)`,
-          [id, code, null, formattedExpiresAt, 0, req.user.id]
+          [id, code, null, formattedExpiresAt, 0, createdByUserId]
         );
 
         codes.push({
