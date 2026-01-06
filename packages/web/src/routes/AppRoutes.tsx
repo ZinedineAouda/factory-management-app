@@ -49,15 +49,27 @@ const AppRoutes: React.FC = () => {
         path="/"
         element={
           <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.ADMIN, UserRole.OPERATOR, UserRole.LEADER]}>
-            {user?.role === UserRole.ADMIN ? (
-              <Navigate to="/admin/dashboard" replace />
-            ) : user?.role === UserRole.OPERATOR ? (
-              <Navigate to="/operator/dashboard" replace />
-            ) : user?.role === UserRole.LEADER ? (
-              <Navigate to="/leader/dashboard" replace />
-            ) : (
-              <Navigate to="/tasks" replace />
-            )}
+            {(() => {
+              // Normalize role for comparison
+              const userRole = user?.role as string;
+              
+              if (!userRole) {
+                return <Navigate to="/login" replace />;
+              }
+              
+              if (userRole === UserRole.ADMIN || userRole === 'admin') {
+                return <Navigate to="/admin/dashboard" replace />;
+              }
+              if (userRole === UserRole.OPERATOR || userRole === 'operator') {
+                return <Navigate to="/operator/dashboard" replace />;
+              }
+              if (userRole === UserRole.LEADER || userRole === 'leader') {
+                return <Navigate to="/leader/dashboard" replace />;
+              }
+              
+              // Default to tasks for worker or unknown roles
+              return <Navigate to="/tasks" replace />;
+            })()}
           </ProtectedRoute>
         }
       />
@@ -253,8 +265,17 @@ const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* Catch all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Catch all - show helpful 404 message instead of redirect */}
+      <Route
+        path="*"
+        element={
+          <div style={{ padding: '2rem', textAlign: 'center' }}>
+            <h2>Page Not Found</h2>
+            <p>The page you're looking for doesn't exist.</p>
+            <button onClick={() => window.location.href = '/'}>Go to Home</button>
+          </div>
+        }
+      />
     </Routes>
   );
 };

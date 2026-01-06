@@ -1,6 +1,36 @@
 // Override API endpoints to use Vite environment variables
 // Use relative URL in development (Vite proxy) or absolute URL from env
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
+const getApiBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  
+  // Development mode - use proxy
+  if (import.meta.env.DEV) {
+    return '/api';
+  }
+  
+  // Production mode
+  if (envUrl) {
+    // Remove trailing slashes
+    let url = envUrl.trim().replace(/\/+$/, '');
+    
+    // If it doesn't start with http:// or https://, add https://
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `https://${url}`;
+    }
+    
+    // Ensure /api is included in the base URL
+    if (!url.endsWith('/api')) {
+      url = `${url}/api`;
+    }
+    
+    return url;
+  }
+  
+  // Fallback (should not happen in production)
+  return 'http://localhost:3000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Re-export with correct base URL
 export const ApiEndpoints = {

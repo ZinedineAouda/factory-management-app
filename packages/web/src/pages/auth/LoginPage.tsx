@@ -31,20 +31,31 @@ const LoginPage: React.FC = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user && user.role) {
+      // Normalize role to handle both enum and string values
+      const userRole = user.role as string;
+      
       let redirectPath = '/';
       
-      if (user.role === UserRole.ADMIN) {
+      // Check against both enum values and string values for robustness
+      if (userRole === UserRole.ADMIN || userRole === 'admin') {
         redirectPath = '/admin/dashboard';
-      } else if (user.role === UserRole.OPERATOR) {
+      } else if (userRole === UserRole.OPERATOR || userRole === 'operator') {
         redirectPath = '/operator/dashboard';
-      } else if (user.role === UserRole.LEADER) {
+      } else if (userRole === UserRole.LEADER || userRole === 'leader') {
         redirectPath = '/leader/dashboard';
-      } else if (user.role === UserRole.WORKER) {
+      } else if (userRole === UserRole.WORKER || userRole === 'worker') {
         redirectPath = '/tasks';
+      } else {
+        // Fallback: redirect to root which will handle the redirect
+        redirectPath = '/';
+        console.warn('Unknown user role:', userRole, 'Redirecting to root');
       }
       
-      navigate(redirectPath, { replace: true });
+      // Small delay to ensure state is fully updated
+      setTimeout(() => {
+        navigate(redirectPath, { replace: true });
+      }, 100);
     }
   }, [isAuthenticated, user, navigate]);
 
