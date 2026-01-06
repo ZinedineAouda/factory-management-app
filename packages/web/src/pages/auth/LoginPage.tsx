@@ -16,6 +16,7 @@ import { Person, Lock, Visibility, VisibilityOff } from '@mui/icons-material';
 import { login, clearError } from '../../store/slices/authSlice';
 import { AppDispatch, RootState } from '../../store';
 import { colors } from '../../theme';
+import { UserRole } from '@factory-app/shared';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -31,14 +32,18 @@ const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const redirectPath =
-        user.role === 'admin'
-          ? '/admin/dashboard'
-          : user.role === 'operator'
-          ? '/operator/dashboard'
-          : user.role === 'leader'
-          ? '/leader/dashboard'
-          : '/dashboard';
+      let redirectPath = '/';
+      
+      if (user.role === UserRole.ADMIN) {
+        redirectPath = '/admin/dashboard';
+      } else if (user.role === UserRole.OPERATOR) {
+        redirectPath = '/operator/dashboard';
+      } else if (user.role === UserRole.LEADER) {
+        redirectPath = '/leader/dashboard';
+      } else if (user.role === UserRole.WORKER) {
+        redirectPath = '/tasks';
+      }
+      
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, user, navigate]);

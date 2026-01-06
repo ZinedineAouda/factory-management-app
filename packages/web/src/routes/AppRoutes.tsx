@@ -13,6 +13,7 @@ import OperatorTaskListPage from '../pages/operator/OperatorTaskListPage';
 import OperatorTaskDetailPage from '../pages/operator/OperatorTaskDetailPage';
 import OperatorTaskCreatePage from '../pages/operator/OperatorTaskCreatePage';
 import OperatorReportPage from '../pages/operator/OperatorReportPage';
+import LeaderDashboardPage from '../pages/leader/LeaderDashboardPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import TaskManagementPage from '../pages/admin/TaskManagementPage';
 import TaskCreatePage from '../pages/admin/TaskCreatePage';
@@ -47,11 +48,13 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/"
         element={
-          <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.ADMIN, UserRole.OPERATOR]}>
+          <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.ADMIN, UserRole.OPERATOR, UserRole.LEADER]}>
             {user?.role === UserRole.ADMIN ? (
               <Navigate to="/admin/dashboard" replace />
             ) : user?.role === UserRole.OPERATOR ? (
               <Navigate to="/operator/dashboard" replace />
+            ) : user?.role === UserRole.LEADER ? (
+              <Navigate to="/leader/dashboard" replace />
             ) : (
               <Navigate to="/tasks" replace />
             )}
@@ -61,7 +64,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/tasks"
         element={
-          <ProtectedRoute allowedRoles={[UserRole.WORKER]}>
+          <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.LEADER]}>
             <TaskListPage />
           </ProtectedRoute>
         }
@@ -138,6 +141,16 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
             <OperatorReportPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Leader Routes */}
+      <Route
+        path="/leader/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={[UserRole.LEADER]}>
+            <LeaderDashboardPage />
           </ProtectedRoute>
         }
       />
