@@ -28,9 +28,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+const defaultOrigins = [
+  'http://localhost:3001',
+  'https://factory-management-app-web.vercel.app'
+];
+
 const allowedOrigins = process.env.FRONTEND_URL 
   ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-  : ['http://localhost:3001'];
+  : defaultOrigins;
 
 app.use(cors({
   origin: (origin, callback) => {
