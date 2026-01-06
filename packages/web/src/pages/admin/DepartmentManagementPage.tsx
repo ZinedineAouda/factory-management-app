@@ -111,11 +111,16 @@ const DepartmentManagementPage: React.FC = () => {
       handleClose();
       fetchDepartments();
     } catch (error: any) {
+      // Safely extract error message
       let errorMessage = 'Failed to save department';
-      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {
         errorMessage = 'Network error: Cannot connect to server.';
-      } else if (error.response) {
-        errorMessage = error.response.data?.error || error.response.statusText || 'Server error';
+      } else if (error?.message) {
+        errorMessage = error.message;
       }
       setError(errorMessage);
     } finally {
@@ -134,7 +139,11 @@ const DepartmentManagementPage: React.FC = () => {
       });
       fetchDepartments();
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to delete department');
+      const errorMessage = error?.response?.data?.error || 
+                           error?.response?.data?.message || 
+                           error?.message || 
+                           'Failed to delete department';
+      setError(typeof errorMessage === 'string' ? errorMessage : String(errorMessage));
     }
   };
 
@@ -254,7 +263,7 @@ const DepartmentManagementPage: React.FC = () => {
     >
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
+          {typeof error === 'string' ? error : ((error as any)?.message || (error as any)?.error || 'An error occurred')}
         </Alert>
       )}
 
@@ -319,7 +328,7 @@ const DepartmentManagementPage: React.FC = () => {
         <DialogContent>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+              {typeof error === 'string' ? error : ((error as any)?.message || (error as any)?.error || 'An error occurred')}
             </Alert>
           )}
           <TextField

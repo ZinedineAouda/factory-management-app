@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { User, LoginCredentials, RegisterData, AuthResponse } from '@factory-app/shared';
 import { ApiEndpoints } from '../../api/endpoints-override';
+import { extractErrorMessage } from '../../api/axiosInstance';
 import axios from 'axios';
 
 interface AuthState {
@@ -46,22 +47,9 @@ export const login = createAsyncThunk(
       saveAuth(response.data.token, response.data.user);
       return response.data;
     } catch (error: any) {
-      // Handle different error structures
-      let errorMessage: string = 'Login failed';
-      
-      if (error.response?.data) {
-        // Backend returned an error response
-        errorMessage = error.response.data.error || error.response.data.message || errorMessage;
-      } else if (error.request) {
-        // Request made but no response (network error, CORS, etc.)
-        errorMessage = error.message || 'Network error. Please check your connection.';
-      } else {
-        // Error in request setup
-        errorMessage = error.message || errorMessage;
-      }
-      
-      // Ensure we always return a string
-      return rejectWithValue(typeof errorMessage === 'string' ? errorMessage : String(errorMessage));
+      // Use helper to safely extract error message
+      const errorMessage = extractErrorMessage(error) || 'Login failed';
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -74,22 +62,9 @@ export const register = createAsyncThunk(
       saveAuth(response.data.token, response.data.user);
       return response.data;
     } catch (error: any) {
-      // Handle different error structures
-      let errorMessage: string = 'Registration failed';
-      
-      if (error.response?.data) {
-        // Backend returned an error response
-        errorMessage = error.response.data.error || error.response.data.message || errorMessage;
-      } else if (error.request) {
-        // Request made but no response (network error, CORS, etc.)
-        errorMessage = error.message || 'Network error. Please check your connection.';
-      } else {
-        // Error in request setup
-        errorMessage = error.message || errorMessage;
-      }
-      
-      // Ensure we always return a string
-      return rejectWithValue(typeof errorMessage === 'string' ? errorMessage : String(errorMessage));
+      // Use helper to safely extract error message
+      const errorMessage = extractErrorMessage(error) || 'Registration failed';
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -130,22 +105,9 @@ export const refreshUser = createAsyncThunk(
       saveAuth(token, updatedUser);
       return updatedUser;
     } catch (error: any) {
-      // Handle different error structures
-      let errorMessage: string = 'Failed to refresh user';
-      
-      if (error.response?.data) {
-        // Backend returned an error response
-        errorMessage = error.response.data.error || error.response.data.message || errorMessage;
-      } else if (error.request) {
-        // Request made but no response (network error, CORS, etc.)
-        errorMessage = error.message || 'Network error. Please check your connection.';
-      } else {
-        // Error in request setup
-        errorMessage = error.message || errorMessage;
-      }
-      
-      // Ensure we always return a string
-      return rejectWithValue(typeof errorMessage === 'string' ? errorMessage : String(errorMessage));
+      // Use helper to safely extract error message
+      const errorMessage = extractErrorMessage(error) || 'Failed to refresh user';
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -218,6 +180,16 @@ const authSlice = createSlice({
       })
       .addCase(refreshUser.fulfilled, (state, action) => {
         state.user = action.payload;
+      })
+      .addCase(refreshUser.rejected, (_state, action) => {
+        // Handle refresh user error - don't clear auth, just log
+        const payload = action.payload;
+        if (typeof payload === 'string') {
+          console.error('Failed to refresh user:', payload);
+        } else if (payload && typeof payload === 'object') {
+          console.error('Failed to refresh user:', (payload as any).message || (payload as any).error || String(payload));
+        }
+        // Don't set error state for refresh failures - user might still be valid
       });
   },
 });

@@ -33,7 +33,11 @@ class ErrorBoundary extends Component<Props, State> {
               Something went wrong
             </Typography>
             <Typography variant="body1" sx={{ mb: 2 }}>
-              {this.state.error?.message || 'An unexpected error occurred'}
+              {this.state.error?.message 
+                ? (typeof this.state.error.message === 'string' 
+                    ? this.state.error.message 
+                    : String(this.state.error.message))
+                : 'An unexpected error occurred'}
             </Typography>
             <Button
               variant="contained"

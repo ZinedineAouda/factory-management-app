@@ -209,7 +209,7 @@ const LoginPage: React.FC = () => {
 
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              {typeof error === 'string' ? error : (error?.message || error?.error || 'An error occurred')}
+              {typeof error === 'string' ? error : ((error as any)?.message || (error as any)?.error || 'An error occurred')}
             </Alert>
           )}
 
