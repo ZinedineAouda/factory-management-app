@@ -10,7 +10,6 @@ import {
   Button,
   Alert,
   CircularProgress,
-  Grid,
   Card,
   CardContent,
   Chip,
@@ -18,7 +17,6 @@ import {
 import {
   Send,
   Image as ImageIcon,
-  Assignment,
 } from '@mui/icons-material';
 import Header from '../../components/layout/Header';
 import axios from 'axios';

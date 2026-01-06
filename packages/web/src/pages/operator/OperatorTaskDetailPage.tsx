@@ -16,10 +16,6 @@ import {
   Grid,
 } from '@mui/material';
 import {
-  Assignment,
-  CheckCircle,
-  Schedule,
-  Pending,
   ArrowBack,
   Report,
 } from '@mui/icons-material';

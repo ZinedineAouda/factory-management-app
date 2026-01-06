@@ -12,7 +12,7 @@ import {
   IconButton,
   alpha,
 } from '@mui/material';
-import { Email, Lock, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Person, Lock, Visibility, VisibilityOff } from '@mui/icons-material';
 import { login, clearError } from '../../store/slices/authSlice';
 import { AppDispatch, RootState } from '../../store';
 import { colors } from '../../theme';
@@ -22,7 +22,7 @@ const LoginPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isAuthenticated, loading, error, user } = useSelector((state: RootState) => state.auth);
 
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ username: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -216,18 +216,18 @@ const LoginPage: React.FC = () => {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Email"
-              name="email"
-              type="email"
-              value={formData.email}
+              label="Username"
+              name="username"
+              type="text"
+              value={formData.username}
               onChange={handleChange}
               required
-              autoComplete="email"
+              autoComplete="username"
               autoFocus
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Email sx={{ fontSize: 20, color: colors.neutral[500] }} />
+                    <Person sx={{ fontSize: 20, color: colors.neutral[500] }} />
                   </InputAdornment>
                 ),
               }}

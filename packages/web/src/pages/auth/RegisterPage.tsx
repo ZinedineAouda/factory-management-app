@@ -12,7 +12,7 @@ import {
   IconButton,
   alpha,
 } from '@mui/material';
-import { Email, Lock, Visibility, VisibilityOff, Person, VpnKey } from '@mui/icons-material';
+import { Lock, Visibility, VisibilityOff, Person, VpnKey } from '@mui/icons-material';
 import { register, clearError } from '../../store/slices/authSlice';
 import { AppDispatch, RootState } from '../../store';
 import { colors } from '../../theme';
@@ -24,7 +24,6 @@ const RegisterPage: React.FC = () => {
 
   const [formData, setFormData] = useState({
     username: '',
-    email: '',
     password: '',
     confirmPassword: '',
     registrationCode: '',
@@ -67,7 +66,6 @@ const RegisterPage: React.FC = () => {
     dispatch(
       register({
         username: formData.username,
-        email: formData.email,
         password: formData.password,
         registrationCode: formData.registrationCode,
       })
@@ -272,24 +270,6 @@ const RegisterPage: React.FC = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     <Person sx={{ fontSize: 20, color: colors.neutral[500] }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="Email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              autoComplete="email"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email sx={{ fontSize: 20, color: colors.neutral[500] }} />
                   </InputAdornment>
                 ),
               }}
