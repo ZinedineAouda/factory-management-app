@@ -476,6 +476,37 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
   }
 });
 
+// Get pending users (Admin only)
+router.get('/users/pending', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const users = await dbAll(
+      `SELECT u.id, u.email, u.username, u.role, u.department_id, u.group_id, u.status, u.created_at, u.is_active, 
+              d.name as department_name, g.name as group_name
+       FROM users u
+       LEFT JOIN departments d ON u.department_id = d.id
+       LEFT JOIN groups g ON u.group_id = g.id
+       WHERE u.status = 'pending'
+       ORDER BY u.created_at DESC`
+    );
+
+    res.json(users.map(user => ({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      status: user.status,
+      departmentId: user.department_id,
+      departmentName: user.department_name,
+      groupName: user.group_name,
+      createdAt: user.created_at,
+      isActive: user.is_active === 1,
+    })));
+  } catch (error: any) {
+    console.error('Get pending users error:', error);
+    res.status(500).json({ error: 'Failed to fetch pending users' });
+  }
+});
+
 // List all users (Admin only) - Only returns approved users (status='active')
 router.get('/users', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
