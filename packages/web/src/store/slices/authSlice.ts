@@ -58,8 +58,21 @@ export const register = createAsyncThunk(
   'auth/register',
   async (data: RegisterData, { rejectWithValue }) => {
     try {
-      const response = await axios.post<AuthResponse>(ApiEndpoints.AUTH.REGISTER, data);
-      saveAuth(response.data.token, response.data.user);
+      const response = await axios.post<any>(ApiEndpoints.AUTH.REGISTER, data);
+      // Backend may not return token for pending users
+      if (response.data.token && response.data.user) {
+        // User is approved, save auth
+        saveAuth(response.data.token, response.data.user);
+        return response.data;
+      } else if (response.data.user) {
+        // Registration successful but pending approval (no token)
+        // Don't save to localStorage since user can't log in yet
+        return {
+          user: response.data.user,
+          token: null,
+          message: response.data.message,
+        };
+      }
       return response.data;
     } catch (error: any) {
       // Use helper to safely extract error message
@@ -164,8 +177,9 @@ const authSlice = createSlice({
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.isAuthenticated = true;
+        state.token = action.payload.token || null;
+        // Only set authenticated if token exists (user is approved)
+        state.isAuthenticated = !!action.payload.token;
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;

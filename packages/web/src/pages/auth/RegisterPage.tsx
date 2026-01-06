@@ -13,8 +13,12 @@ import {
   InputAdornment,
   IconButton,
   alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
-import { Lock, Visibility, VisibilityOff, Person, VpnKey } from '@mui/icons-material';
+import { Lock, Visibility, VisibilityOff, Person, VpnKey, CheckCircle, HourglassEmpty } from '@mui/icons-material';
 import { register, clearError } from '../../store/slices/authSlice';
 import { AppDispatch, RootState } from '../../store';
 import { colors } from '../../theme';
@@ -38,7 +42,15 @@ const RegisterPage: React.FC = () => {
     available: null,
     message: '',
   });
+  const [registrationCodeStatus, setRegistrationCodeStatus] = useState<{ checking: boolean; valid: boolean | null; message: string }>({
+    checking: false,
+    valid: null,
+    message: '',
+  });
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [registrationStatus, setRegistrationStatus] = useState<'pending' | 'active' | null>(null);
   const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const registrationCodeCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     dispatch(clearError());
@@ -57,11 +69,21 @@ const RegisterPage: React.FC = () => {
     return '/';
   }, [user?.role]);
 
+  // Handle successful registration
   useEffect(() => {
-    if (isAuthenticated && redirectPath) {
-      navigate(redirectPath, { replace: true });
+    if (!loading && user) {
+      const userStatus = (user as any).status || (user.isActive ? 'active' : 'pending');
+      setRegistrationStatus(userStatus);
+      
+      if (userStatus === 'pending' || !isAuthenticated) {
+        // Show approval dialog for pending users (no token = pending)
+        setShowApprovalDialog(true);
+      } else if (isAuthenticated && redirectPath) {
+        // Active users can proceed normally
+        navigate(redirectPath, { replace: true });
+      }
     }
-  }, [isAuthenticated, redirectPath, navigate]);
+  }, [isAuthenticated, user, loading, redirectPath, navigate]);
 
   // Real-time validation
   const validationError = useMemo(() => {
@@ -85,9 +107,11 @@ const RegisterPage: React.FC = () => {
       !usernameStatus.checking &&
       formData.password.length >= 6 &&
       formData.password === formData.confirmPassword &&
-      formData.registrationCode.trim().length > 0
+      formData.registrationCode.trim().length > 0 &&
+      registrationCodeStatus.valid === true &&
+      !registrationCodeStatus.checking
     );
-  }, [formData, usernameStatus]);
+  }, [formData, usernameStatus, registrationCodeStatus]);
 
   // Check username availability
   const checkUsernameAvailability = useCallback(async (username: string) => {
@@ -116,6 +140,32 @@ const RegisterPage: React.FC = () => {
     }
   }, []);
 
+  // Check registration code validity
+  const checkRegistrationCode = useCallback(async (code: string) => {
+    if (!code.trim()) {
+      setRegistrationCodeStatus({ checking: false, valid: null, message: '' });
+      return;
+    }
+
+    setRegistrationCodeStatus({ checking: true, valid: null, message: 'Validating code...' });
+
+    try {
+      const response = await axios.get(ApiEndpoints.AUTH.VALIDATE_CODE(code.trim()));
+      setRegistrationCodeStatus({
+        checking: false,
+        valid: response.data.valid === true,
+        message: response.data.valid ? 'Registration code is valid' : 'Invalid registration code',
+      });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Invalid or expired registration code';
+      setRegistrationCodeStatus({
+        checking: false,
+        valid: false,
+        message: errorMessage,
+      });
+    }
+  }, []);
+
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -139,7 +189,26 @@ const RegisterPage: React.FC = () => {
         checkUsernameAvailability(value);
       }, 500);
     }
-  }, [checkUsernameAvailability]);
+
+    // Check registration code validity with debounce
+    if (name === 'registrationCode') {
+      // Clear previous timeout
+      if (registrationCodeCheckTimeoutRef.current) {
+        clearTimeout(registrationCodeCheckTimeoutRef.current);
+      }
+
+      // Reset status if code is cleared
+      if (!value.trim()) {
+        setRegistrationCodeStatus({ checking: false, valid: null, message: '' });
+        return;
+      }
+
+      // Debounce code check (wait 500ms after user stops typing)
+      registrationCodeCheckTimeoutRef.current = setTimeout(() => {
+        checkRegistrationCode(value);
+      }, 500);
+    }
+  }, [checkUsernameAvailability, checkRegistrationCode]);
 
   const handleBlur = useCallback((field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
@@ -371,7 +440,32 @@ const RegisterPage: React.FC = () => {
                 setTouched({});
               }}
             >
-              {validationError || (typeof error === 'string' ? error : ((error as any)?.message || (error as any)?.error || 'An error occurred'))}
+              <Box>
+                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {(() => {
+                    const errorMsg = validationError || (typeof error === 'string' ? error : ((error as any)?.message || (error as any)?.error || 'An error occurred'));
+                    
+                    // Check for specific registration code errors
+                    if (errorMsg.includes('Invalid') && errorMsg.includes('registration code')) {
+                      return 'Invalid Registration Code';
+                    }
+                    if (errorMsg.includes('expired') && errorMsg.includes('code')) {
+                      return 'Expired Registration Code';
+                    }
+                    if (errorMsg.includes('already used')) {
+                      return 'Code Already Used';
+                    }
+                    if (errorMsg.includes('Username already taken')) {
+                      return 'Username Already Taken';
+                    }
+                    
+                    return 'Registration Failed';
+                  })()}
+                </Typography>
+                <Typography sx={{ fontSize: '0.875rem', color: 'inherit', opacity: 0.9 }}>
+                  {validationError || (typeof error === 'string' ? error : ((error as any)?.message || (error as any)?.error || 'An error occurred. Please check all fields and try again.'))}
+                </Typography>
+              </Box>
             </Alert>
           )}
 
@@ -521,12 +615,28 @@ const RegisterPage: React.FC = () => {
               name="registrationCode"
               value={formData.registrationCode}
               onChange={handleChange}
-              onBlur={() => handleBlur('registrationCode')}
+              onBlur={() => {
+                handleBlur('registrationCode');
+                if (formData.registrationCode.trim()) {
+                  checkRegistrationCode(formData.registrationCode);
+                }
+              }}
               required
-              error={touched.registrationCode && !formData.registrationCode.trim()}
+              error={
+                (touched.registrationCode && !formData.registrationCode.trim()) ||
+                (touched.registrationCode && formData.registrationCode.trim().length > 0 && registrationCodeStatus.valid === false)
+              }
               helperText={
-                touched.registrationCode && !formData.registrationCode.trim()
-                  ? 'Registration code is required'
+                touched.registrationCode
+                  ? !formData.registrationCode.trim()
+                    ? 'Registration code is required'
+                    : registrationCodeStatus.checking
+                    ? 'Validating code...'
+                    : registrationCodeStatus.valid === false
+                    ? registrationCodeStatus.message || 'Invalid or expired registration code'
+                    : registrationCodeStatus.valid === true
+                    ? '✓ Registration code is valid'
+                    : 'Enter the code provided by your administrator'
                   : 'Enter the code provided by your administrator'
               }
               InputProps={{
@@ -579,6 +689,97 @@ const RegisterPage: React.FC = () => {
           </Typography>
         </Box>
       </Box>
+
+      {/* Approval Pending Dialog */}
+      <Dialog
+        open={showApprovalDialog}
+        onClose={() => {}}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: colors.neutral[900],
+            border: `1px solid ${colors.neutral[800]}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 2,
+                backgroundColor: alpha(colors.warning[500], 0.1),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <HourglassEmpty sx={{ fontSize: 28, color: colors.warning[500] }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: colors.neutral[100] }}>
+                Account Pending Approval
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: colors.neutral[300], mb: 2, lineHeight: 1.7 }}>
+            Your account has been successfully created! However, it is currently pending approval by an administrator.
+          </Typography>
+          <Box
+            sx={{
+              backgroundColor: colors.neutral[950],
+              border: `1px solid ${colors.neutral[800]}`,
+              borderRadius: 2,
+              p: 2,
+              mb: 2,
+            }}
+          >
+            <Typography sx={{ color: colors.neutral[400], fontSize: '0.875rem', fontWeight: 600, mb: 1 }}>
+              What happens next?
+            </Typography>
+            <Box component="ul" sx={{ m: 0, pl: 2.5, color: colors.neutral[400], fontSize: '0.875rem' }}>
+              <li>An administrator will review your registration</li>
+              <li>You will receive a notification once your account is approved</li>
+              <li>You can then log in and access the system</li>
+            </Box>
+          </Box>
+          <Typography sx={{ color: colors.neutral[400], fontSize: '0.875rem' }}>
+            Please wait for approval before attempting to log in.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 2 }}>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={() => {
+              setShowApprovalDialog(false);
+              dispatch(clearError());
+              // Clear form and redirect to login
+              setFormData({
+                username: '',
+                password: '',
+                confirmPassword: '',
+                registrationCode: '',
+              });
+              setTouched({});
+              setUsernameStatus({ checking: false, available: null, message: '' });
+              setRegistrationCodeStatus({ checking: false, valid: null, message: '' });
+              navigate('/login', { replace: true });
+            }}
+            sx={{
+              py: 1.5,
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+            }}
+          >
+            Go to Login Page
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
