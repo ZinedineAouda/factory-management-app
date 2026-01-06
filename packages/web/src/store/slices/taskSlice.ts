@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { Task, UpdateTaskProgressData, TaskPriority, TaskStatus } from '@factory-app/shared';
+import { Task, UpdateTaskProgressData } from '@factory-app/shared';
 import { ApiEndpoints } from '../../api/endpoints-override';
 import axios from 'axios';
 import { RootState } from '../index';
@@ -18,7 +18,7 @@ const initialState: TaskState = {
   error: null,
 };
 
-const getAuthHeaders = (getState: () => RootState) => {
+const getAuthHeaders = (getState: () => RootState): Record<string, string> => {
   const state = getState();
   const token = state.auth.token;
   return token ? { Authorization: `Bearer ${token}` } : {};

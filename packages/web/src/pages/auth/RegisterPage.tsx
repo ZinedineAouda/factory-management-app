@@ -106,7 +106,7 @@ const RegisterPage: React.FC = () => {
             height: '200%',
             top: '-50%',
             left: '-50%',
-            background: `radial-gradient(circle at 30% 70%, ${alpha(colors.success[400], 0.15)} 0%, transparent 50%)`,
+            background: `radial-gradient(circle at 30% 70%, ${alpha(colors.success[500], 0.15)} 0%, transparent 50%)`,
           },
         }}
       >

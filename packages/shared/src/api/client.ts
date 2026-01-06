@@ -25,15 +25,15 @@ export class ApiClient {
         }
         return config;
       },
-      (error) => {
+      (error: any) => {
         return Promise.reject(error);
       }
     );
 
     // Response interceptor - Handle errors
     this.client.interceptors.response.use(
-      (response) => response,
-      async (error) => {
+      (response: any) => response,
+      async (error: any) => {
         if (error.response?.status === 401) {
           // Handle token refresh or redirect to login
           this.handleUnauthorized();

@@ -65,6 +65,14 @@ const departmentData = [
   { name: 'Other', value: 10, color: colors.info[500] },
 ];
 
+interface Activity {
+  id: string;
+  type: string;
+  description: string;
+  timestamp: string;
+  user?: string;
+}
+
 interface QuickAction {
   title: string;
   description: string;
@@ -83,7 +91,7 @@ const AdminDashboardPage: React.FC = () => {
     totalTasks: 0,
     completedTasks: 0,
   });
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [clearingActivity, setClearingActivity] = useState(false);
 
   useEffect(() => {
@@ -490,7 +498,7 @@ const AdminDashboardPage: React.FC = () => {
                     startIcon={clearingActivity ? <CircularProgress size={14} /> : <Delete sx={{ fontSize: 14 }} />}
                     onClick={handleClearActivity}
                     disabled={clearingActivity}
-                    sx={{ fontSize: '0.8125rem', color: colors.error[400] }}
+                    sx={{ fontSize: '0.8125rem', color: colors.error[500] }}
                   >
                     Clear
                   </Button>
@@ -503,7 +511,7 @@ const AdminDashboardPage: React.FC = () => {
                   No recent activity
                 </Typography>
               ) : (
-                recentActivity.slice(0, 5).map((activity) => (
+                recentActivity.slice(0, 5).map((activity: Activity) => (
                   <Box
                     key={activity.id}
                     sx={{

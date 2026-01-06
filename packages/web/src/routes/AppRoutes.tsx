@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { UserRole } from '@factory-app/shared';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
 import TaskListPage from '../pages/worker/TaskListPage';
@@ -46,10 +47,10 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/"
         element={
-          <ProtectedRoute allowedRoles={['worker', 'admin', 'operator']}>
-            {user?.role === 'admin' ? (
+          <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.ADMIN, UserRole.OPERATOR]}>
+            {user?.role === UserRole.ADMIN ? (
               <Navigate to="/admin/dashboard" replace />
-            ) : user?.role === 'operator' ? (
+            ) : user?.role === UserRole.OPERATOR ? (
               <Navigate to="/operator/dashboard" replace />
             ) : (
               <Navigate to="/tasks" replace />
@@ -84,7 +85,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/profile"
         element={
-          <ProtectedRoute allowedRoles={['worker', 'admin', 'operator']}>
+          <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.ADMIN, UserRole.OPERATOR]}>
             <ProfilePage />
           </ProtectedRoute>
         }
@@ -92,7 +93,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/settings"
         element={
-          <ProtectedRoute allowedRoles={['worker', 'admin', 'operator', 'leader']}>
+          <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.ADMIN, UserRole.OPERATOR, UserRole.LEADER]}>
             <SettingsPage />
           </ProtectedRoute>
         }
@@ -145,7 +146,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/dashboard"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <AdminDashboardPage />
           </ProtectedRoute>
         }
@@ -153,7 +154,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/tasks"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <TaskManagementPage />
           </ProtectedRoute>
         }
@@ -161,7 +162,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/tasks/create"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <TaskCreatePage />
           </ProtectedRoute>
         }
@@ -169,7 +170,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/tasks/create/:taskId"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <TaskCreatePage />
           </ProtectedRoute>
         }
@@ -177,7 +178,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/departments"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <DepartmentManagementPage />
           </ProtectedRoute>
         }
@@ -185,7 +186,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/codes"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <CodeGenerationPage />
           </ProtectedRoute>
         }
@@ -193,7 +194,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/users"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <UserManagementPage />
           </ProtectedRoute>
         }
@@ -201,7 +202,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/analytics"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <AnalyticsPage />
           </ProtectedRoute>
         }
@@ -209,7 +210,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/reports"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <ReportsPage />
           </ProtectedRoute>
         }
@@ -217,7 +218,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/products"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <ProductsPage />
           </ProtectedRoute>
         }
@@ -225,7 +226,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/groups"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <GroupsAndShiftsPage />
           </ProtectedRoute>
         }
@@ -233,7 +234,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/roles"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <RoleManagementPage />
           </ProtectedRoute>
         }

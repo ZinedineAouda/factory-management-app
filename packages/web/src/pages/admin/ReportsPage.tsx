@@ -4,9 +4,7 @@ import {
   Box,
   Typography,
   Button,
-  Grid,
   alpha,
-  CircularProgress,
   Alert,
   IconButton,
   Tooltip,
@@ -118,7 +116,7 @@ const ReportsPage: React.FC = () => {
       label: '',
       width: 120,
       align: 'right' as const,
-      render: (row: Report) => (
+      render: (_row: Report) => (
         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
           <Tooltip title="View Report">
             <IconButton size="small">
