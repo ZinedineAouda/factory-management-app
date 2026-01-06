@@ -29,10 +29,10 @@ const getStoredUser = (): User | null => {
 };
 
 const initialState: AuthState = {
-  user: getStoredUser(),
-  token: localStorage.getItem('token'),
-  isAuthenticated: !!localStorage.getItem('token'),
-  loading: false,
+  user: null,
+  token: null,
+  isAuthenticated: false,
+  loading: true, // Start with loading true to prevent premature redirects
   error: null,
 };
 
@@ -73,13 +73,26 @@ export const logout = createAsyncThunk('auth/logout', async () => {
   clearAuth();
 });
 
-export const loadStoredAuth = createAsyncThunk('auth/loadStored', async () => {
+export const loadStoredAuth = createAsyncThunk('auth/loadStored', async (_, { rejectWithValue }) => {
   const token = localStorage.getItem('token');
   const user = getStoredUser();
   
   if (token && user) {
-    return { token, user };
+    // Validate token with backend
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
+      await axios.get(`${API_BASE_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // Token is valid
+      return { token, user };
+    } catch (error) {
+      // Token is invalid, clear it
+      clearAuth();
+      return rejectWithValue('Token expired or invalid');
+    }
   }
+  // No token found
   return null;
 });
 
@@ -171,12 +184,28 @@ const authSlice = createSlice({
         state.token = null;
         state.isAuthenticated = false;
       })
+      .addCase(loadStoredAuth.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(loadStoredAuth.fulfilled, (state, action) => {
+        state.loading = false;
         if (action.payload) {
           state.user = action.payload.user;
           state.token = action.payload.token;
           state.isAuthenticated = true;
+        } else {
+          // No stored auth found
+          state.isAuthenticated = false;
+          state.user = null;
+          state.token = null;
         }
+      })
+      .addCase(loadStoredAuth.rejected, (state) => {
+        // Token was invalid, clear everything
+        state.loading = false;
+        state.isAuthenticated = false;
+        state.user = null;
+        state.token = null;
       })
       .addCase(refreshUser.fulfilled, (state, action) => {
         state.user = action.payload;

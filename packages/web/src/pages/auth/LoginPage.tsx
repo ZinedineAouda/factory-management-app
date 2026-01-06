@@ -31,7 +31,8 @@ const LoginPage: React.FC = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (isAuthenticated && user && user.role) {
+    // Only redirect if not loading and authenticated
+    if (!loading && isAuthenticated && user && user.role) {
       // Normalize role to handle both enum and string values
       const userRole = user.role as string;
       
@@ -57,7 +58,7 @@ const LoginPage: React.FC = () => {
         navigate(redirectPath, { replace: true });
       }, 100);
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,7 +1,9 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { Box, CircularProgress } from '@mui/material';
 import { UserRole } from '@factory-app/shared';
+import { colors } from '../theme';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
 import TaskListPage from '../pages/worker/TaskListPage';
@@ -30,7 +32,24 @@ import ProtectedRoute from './ProtectedRoute';
 import { RootState } from '../store';
 
 const AppRoutes: React.FC = () => {
-  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, user, loading } = useSelector((state: RootState) => state.auth);
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.neutral[950],
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Routes>
