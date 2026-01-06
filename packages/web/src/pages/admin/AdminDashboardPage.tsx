@@ -18,7 +18,6 @@ import {
   Assignment,
   TrendingUp,
   ArrowForward,
-  Add,
   MoreVert,
   Inventory,
   CheckCircle,
