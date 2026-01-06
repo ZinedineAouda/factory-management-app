@@ -25,10 +25,25 @@ const LoginPage: React.FC = () => {
 
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [persistedError, setPersistedError] = useState<string | null>(null);
 
+  // Check for persisted error on mount
   useEffect(() => {
+    const storedError = sessionStorage.getItem('loginError');
+    if (storedError) {
+      setPersistedError(storedError);
+      sessionStorage.removeItem('loginError');
+    }
     dispatch(clearError());
   }, [dispatch]);
+
+  // Persist error to sessionStorage when error occurs
+  useEffect(() => {
+    if (error && typeof error === 'string') {
+      sessionStorage.setItem('loginError', error);
+      setPersistedError(error);
+    }
+  }, [error]);
 
   // Memoize redirect path calculation
   const redirectPath = useMemo(() => {
@@ -66,24 +81,25 @@ const LoginPage: React.FC = () => {
     setShowPassword(prev => !prev);
   }, []);
 
-  // Optimize error message extraction
+  // Optimize error message extraction (check both current error and persisted error)
   const errorMessage = useMemo(() => {
-    if (!error) return null;
+    const currentError = error || persistedError;
+    if (!currentError) return null;
     
-    if (typeof error === 'string') {
-      if (error.includes('Account not found') || error.includes('does not exist') || error.includes('Invalid username')) {
+    if (typeof currentError === 'string') {
+      if (currentError.includes('Account not found') || currentError.includes('does not exist') || currentError.includes('Invalid username')) {
         return {
           title: 'Account Not Found',
           description: 'The username you entered does not exist. Please check your username and try again.',
         };
       }
-      if (error.includes('Incorrect password') || (error.includes('password') && error.includes('incorrect'))) {
+      if (currentError.includes('Incorrect password') || (currentError.includes('password') && currentError.includes('incorrect'))) {
         return {
           title: 'Incorrect Password',
           description: 'The password you entered is incorrect. Please check your password and try again.',
         };
       }
-      if (error.includes('pending approval')) {
+      if (currentError.includes('pending approval')) {
         return {
           title: 'Account Pending Approval',
           description: 'Your account is waiting for administrator approval. Please contact your administrator.',
@@ -91,17 +107,17 @@ const LoginPage: React.FC = () => {
       }
       return {
         title: 'Login Failed',
-        description: error,
+        description: currentError,
       };
     }
     
-    const errorObj = error as any;
+    const errorObj = currentError as any;
     const message = errorObj?.message || errorObj?.error || 'An unexpected error occurred. Please try again.';
     return {
       title: 'Login Failed',
       description: message,
     };
-  }, [error]);
+  }, [error, persistedError]);
 
   return (
     <Box
@@ -267,7 +283,11 @@ const LoginPage: React.FC = () => {
                   width: '100%',
                 },
               }}
-              onClose={() => dispatch(clearError())}
+              onClose={() => {
+                dispatch(clearError());
+                setPersistedError(null);
+                sessionStorage.removeItem('loginError');
+              }}
             >
               <Box>
                 <Typography sx={{ fontWeight: 600, mb: 0.5 }}>

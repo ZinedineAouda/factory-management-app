@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import axios from 'axios';
+import { ApiEndpoints } from '../../api/endpoints-override';
 import {
   Box,
   TextField,
@@ -31,6 +33,12 @@ const RegisterPage: React.FC = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [usernameStatus, setUsernameStatus] = useState<{ checking: boolean; available: boolean | null; message: string }>({
+    checking: false,
+    available: null,
+    message: '',
+  });
+  const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     dispatch(clearError());
@@ -72,18 +80,66 @@ const RegisterPage: React.FC = () => {
 
   const isFormValid = useMemo(() => {
     return (
-      formData.username.trim().length > 0 &&
+      formData.username.trim().length >= 3 &&
+      usernameStatus.available === true &&
+      !usernameStatus.checking &&
       formData.password.length >= 6 &&
       formData.password === formData.confirmPassword &&
       formData.registrationCode.trim().length > 0
     );
-  }, [formData]);
+  }, [formData, usernameStatus]);
+
+  // Check username availability
+  const checkUsernameAvailability = useCallback(async (username: string) => {
+    if (!username.trim() || username.trim().length < 3) {
+      setUsernameStatus({ checking: false, available: null, message: '' });
+      return;
+    }
+
+    setUsernameStatus({ checking: true, available: null, message: 'Checking availability...' });
+
+    try {
+      const response = await axios.get(
+        ApiEndpoints.AUTH.CHECK_USERNAME(username.trim())
+      );
+      setUsernameStatus({
+        checking: false,
+        available: response.data.available,
+        message: response.data.message,
+      });
+    } catch (error: any) {
+      setUsernameStatus({
+        checking: false,
+        available: false,
+        message: error.response?.data?.message || 'Error checking username',
+      });
+    }
+  }, []);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     setTouched(prev => ({ ...prev, [name]: true }));
-  }, []);
+
+    // Check username availability with debounce
+    if (name === 'username') {
+      // Clear previous timeout
+      if (usernameCheckTimeoutRef.current) {
+        clearTimeout(usernameCheckTimeoutRef.current);
+      }
+
+      // Reset status if username is cleared
+      if (!value.trim()) {
+        setUsernameStatus({ checking: false, available: null, message: '' });
+        return;
+      }
+
+      // Debounce username check (wait 500ms after user stops typing)
+      usernameCheckTimeoutRef.current = setTimeout(() => {
+        checkUsernameAvailability(value);
+      }, 500);
+    }
+  }, [checkUsernameAvailability]);
 
   const handleBlur = useCallback((field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
@@ -326,11 +382,33 @@ const RegisterPage: React.FC = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
-              onBlur={() => handleBlur('username')}
+              onBlur={() => {
+                handleBlur('username');
+                if (formData.username.trim().length >= 3) {
+                  checkUsernameAvailability(formData.username);
+                }
+              }}
               required
               autoFocus
-              error={touched.username && !formData.username.trim()}
-              helperText={touched.username && !formData.username.trim() ? 'Username is required' : ''}
+              error={
+                (touched.username && !formData.username.trim()) ||
+                (touched.username && formData.username.trim().length > 0 && usernameStatus.available === false)
+              }
+              helperText={
+                touched.username
+                  ? formData.username.trim().length === 0
+                    ? 'Username is required'
+                    : formData.username.trim().length < 3
+                    ? 'Username must be at least 3 characters'
+                    : usernameStatus.checking
+                    ? 'Checking availability...'
+                    : usernameStatus.available === false
+                    ? usernameStatus.message || 'Username already taken'
+                    : usernameStatus.available === true
+                    ? '✓ Username is available'
+                    : ''
+                  : 'Username must be at least 3 characters'
+              }
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">

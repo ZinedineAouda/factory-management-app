@@ -263,6 +263,29 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Check username availability
+router.get('/check-username/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    if (!username || username.trim().length === 0) {
+      return res.status(400).json({ available: false, message: 'Username is required' });
+    }
+
+    // Check if username already exists (case-insensitive)
+    const existingUser = await dbGet('SELECT id FROM users WHERE LOWER(username) = LOWER(?)', [username.trim()]);
+    
+    if (existingUser) {
+      return res.json({ available: false, message: 'Username already taken' });
+    }
+
+    return res.json({ available: true, message: 'Username is available' });
+  } catch (error: any) {
+    console.error('Check username error:', error);
+    res.status(500).json({ available: false, message: 'Error checking username availability' });
+  }
+});
+
 // Validate registration code
 router.get('/validate-code/:code', async (req, res) => {
   try {

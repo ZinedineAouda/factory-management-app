@@ -40,6 +40,7 @@ export const ApiEndpoints = {
     REFRESH: `${API_BASE_URL}/auth/refresh`,
     LOGOUT: `${API_BASE_URL}/auth/logout`,
     VALIDATE_CODE: (code: string) => `${API_BASE_URL}/auth/validate-code/${code}`,
+    CHECK_USERNAME: (username: string) => `${API_BASE_URL}/auth/check-username/${encodeURIComponent(username)}`,
   },
   TASKS: {
     LIST: `${API_BASE_URL}/tasks`,
