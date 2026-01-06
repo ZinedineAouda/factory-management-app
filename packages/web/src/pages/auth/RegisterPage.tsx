@@ -18,7 +18,7 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
-import { Lock, Visibility, VisibilityOff, Person, VpnKey, CheckCircle, HourglassEmpty } from '@mui/icons-material';
+import { Lock, Visibility, VisibilityOff, Person, VpnKey, HourglassEmpty } from '@mui/icons-material';
 import { register, clearError } from '../../store/slices/authSlice';
 import { AppDispatch, RootState } from '../../store';
 import { colors } from '../../theme';
@@ -48,7 +48,6 @@ const RegisterPage: React.FC = () => {
     message: '',
   });
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
-  const [registrationStatus, setRegistrationStatus] = useState<'pending' | 'active' | null>(null);
   const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const registrationCodeCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -73,7 +72,6 @@ const RegisterPage: React.FC = () => {
   useEffect(() => {
     if (!loading && user) {
       const userStatus = (user as any).status || (user.isActive ? 'active' : 'pending');
-      setRegistrationStatus(userStatus);
       
       if (userStatus === 'pending' || !isAuthenticated) {
         // Show approval dialog for pending users (no token = pending)
