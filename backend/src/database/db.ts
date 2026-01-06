@@ -110,7 +110,9 @@ export const initDatabase = async () => {
     CREATE TABLE IF NOT EXISTS registration_codes (
       id TEXT PRIMARY KEY,
       code TEXT NOT NULL UNIQUE,
-      role TEXT CHECK(role IN ('worker', 'operator', 'leader')),
+      role TEXT CHECK(role IN ('worker', 'operator', 'leader') OR role IS NULL),
+      expires_at DATETIME,
+      is_used INTEGER DEFAULT 0,
       created_by TEXT,
       used_by TEXT,
       used_at DATETIME,
@@ -119,6 +121,10 @@ export const initDatabase = async () => {
       FOREIGN KEY (used_by) REFERENCES users(id)
     )
   `);
+  
+  // Add missing columns if they don't exist (migration)
+  await dbRun(`ALTER TABLE registration_codes ADD COLUMN expires_at DATETIME`).catch(() => {});
+  await dbRun(`ALTER TABLE registration_codes ADD COLUMN is_used INTEGER DEFAULT 0`).catch(() => {});
 
   // Tasks table
   await dbRun(`
