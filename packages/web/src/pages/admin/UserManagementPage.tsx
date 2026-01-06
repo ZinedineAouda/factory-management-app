@@ -149,27 +149,44 @@ const UserManagementPage: React.FC = () => {
   };
 
   const handleApproveUser = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser || !selectedRole) return;
 
     try {
       setError(null);
+      const payload: {
+        role: string;
+        departmentId?: string | null;
+        groupId?: string | null;
+      } = {
+        role: selectedRole, // UserRole enum values are already strings: 'admin', 'worker', 'operator', 'leader'
+      };
+
+      // Only include departmentId if provided
+      if (selectedDepartmentId && selectedDepartmentId.trim()) {
+        payload.departmentId = selectedDepartmentId.trim();
+      } else {
+        payload.departmentId = null;
+      }
+
+      // Only include groupId if provided
+      if (selectedGroupId && selectedGroupId.trim()) {
+        payload.groupId = selectedGroupId.trim();
+      } else {
+        payload.groupId = null;
+      }
+
       await axios.post(
         ApiEndpoints.USERS.APPROVE(selectedUser.id),
-        {
-          role: selectedRole,
-          departmentId: selectedDepartmentId || null,
-          groupId: selectedGroupId || null,
-        },
+        payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       handleCloseApproveDialog();
       // Refresh both lists
-      fetchUsers();
-      fetchPendingUsers();
+      await Promise.all([fetchUsers(), fetchPendingUsers()]);
     } catch (error: any) {
       console.error('Approve user error:', error);
       const errorMessage =
-        error.response?.data?.error || error.message || 'Failed to approve user';
+        error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to approve user';
       setError(errorMessage);
     }
   };

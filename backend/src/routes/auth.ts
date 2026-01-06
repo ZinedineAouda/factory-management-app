@@ -411,28 +411,37 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
       return res.status(400).json({ error: 'User is already approved' });
     }
 
-    // Validate role if provided
-    if (role && !['worker', 'operator', 'leader', 'admin'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
+    // Validate role - it's required for approval
+    if (!role || typeof role !== 'string') {
+      return res.status(400).json({ error: 'Role is required for approval' });
     }
 
-    // Update user: approve and optionally assign role, department, and group
-    const updates: string[] = ['status = ?', 'updated_at = CURRENT_TIMESTAMP'];
-    const values: any[] = ['active'];
-
-    if (role) {
-      updates.push('role = ?');
-      values.push(role);
+    const validRoles = ['worker', 'operator', 'leader', 'admin'];
+    const normalizedRole = role.toLowerCase().trim();
+    if (!validRoles.includes(normalizedRole)) {
+      return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
     }
 
-    if (departmentId !== undefined) {
+    // Update user: approve and assign role, department, and group
+    const updates: string[] = ['status = ?', 'role = ?', 'updated_at = CURRENT_TIMESTAMP'];
+    const values: any[] = ['active', normalizedRole];
+
+    // Handle departmentId - null if empty string or undefined
+    if (departmentId !== undefined && departmentId !== null && departmentId !== '') {
       updates.push('department_id = ?');
-      values.push(departmentId || null);
+      values.push(departmentId);
+    } else {
+      updates.push('department_id = ?');
+      values.push(null);
     }
 
-    if (groupId !== undefined) {
+    // Handle groupId - null if empty string or undefined
+    if (groupId !== undefined && groupId !== null && groupId !== '') {
       updates.push('group_id = ?');
-      values.push(groupId || null);
+      values.push(groupId);
+    } else {
+      updates.push('group_id = ?');
+      values.push(null);
     }
 
     values.push(id);
