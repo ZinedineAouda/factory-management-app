@@ -253,7 +253,7 @@ const RegisterPage: React.FC = () => {
 
           {(error || validationError) && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              {validationError || error}
+              {validationError || (typeof error === 'string' ? error : (error?.message || error?.error || 'An error occurred'))}
             </Alert>
           )}
 

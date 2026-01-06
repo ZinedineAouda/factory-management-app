@@ -46,7 +46,22 @@ export const login = createAsyncThunk(
       saveAuth(response.data.token, response.data.user);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Login failed');
+      // Handle different error structures
+      let errorMessage: string = 'Login failed';
+      
+      if (error.response?.data) {
+        // Backend returned an error response
+        errorMessage = error.response.data.error || error.response.data.message || errorMessage;
+      } else if (error.request) {
+        // Request made but no response (network error, CORS, etc.)
+        errorMessage = error.message || 'Network error. Please check your connection.';
+      } else {
+        // Error in request setup
+        errorMessage = error.message || errorMessage;
+      }
+      
+      // Ensure we always return a string
+      return rejectWithValue(typeof errorMessage === 'string' ? errorMessage : String(errorMessage));
     }
   }
 );
@@ -59,7 +74,22 @@ export const register = createAsyncThunk(
       saveAuth(response.data.token, response.data.user);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Registration failed');
+      // Handle different error structures
+      let errorMessage: string = 'Registration failed';
+      
+      if (error.response?.data) {
+        // Backend returned an error response
+        errorMessage = error.response.data.error || error.response.data.message || errorMessage;
+      } else if (error.request) {
+        // Request made but no response (network error, CORS, etc.)
+        errorMessage = error.message || 'Network error. Please check your connection.';
+      } else {
+        // Error in request setup
+        errorMessage = error.message || errorMessage;
+      }
+      
+      // Ensure we always return a string
+      return rejectWithValue(typeof errorMessage === 'string' ? errorMessage : String(errorMessage));
     }
   }
 );
@@ -100,7 +130,22 @@ export const refreshUser = createAsyncThunk(
       saveAuth(token, updatedUser);
       return updatedUser;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to refresh user');
+      // Handle different error structures
+      let errorMessage: string = 'Failed to refresh user';
+      
+      if (error.response?.data) {
+        // Backend returned an error response
+        errorMessage = error.response.data.error || error.response.data.message || errorMessage;
+      } else if (error.request) {
+        // Request made but no response (network error, CORS, etc.)
+        errorMessage = error.message || 'Network error. Please check your connection.';
+      } else {
+        // Error in request setup
+        errorMessage = error.message || errorMessage;
+      }
+      
+      // Ensure we always return a string
+      return rejectWithValue(typeof errorMessage === 'string' ? errorMessage : String(errorMessage));
     }
   }
 );
@@ -127,7 +172,15 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || 'Login failed';
+        const payload = action.payload;
+        if (typeof payload === 'string') {
+          state.error = payload;
+        } else if (payload && typeof payload === 'object') {
+          // Handle error objects with various structures
+          state.error = (payload as any).message || (payload as any).error || String(payload) || 'Login failed';
+        } else {
+          state.error = 'Login failed';
+        }
       })
       .addCase(register.pending, (state) => {
         state.loading = true;
@@ -141,7 +194,15 @@ const authSlice = createSlice({
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || 'Registration failed';
+        const payload = action.payload;
+        if (typeof payload === 'string') {
+          state.error = payload;
+        } else if (payload && typeof payload === 'object') {
+          // Handle error objects with various structures
+          state.error = (payload as any).message || (payload as any).error || String(payload) || 'Registration failed';
+        } else {
+          state.error = 'Registration failed';
+        }
       })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
