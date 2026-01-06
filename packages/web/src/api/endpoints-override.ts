@@ -61,6 +61,8 @@ export const ApiEndpoints = {
   },
   USERS: {
     LIST: `${API_BASE_URL}/auth/users`,
+    PENDING: `${API_BASE_URL}/auth/users/pending`,
+    APPROVE: (id: string) => `${API_BASE_URL}/auth/users/${id}/approve`,
     UPDATE_DEPARTMENT: (id: string) => `${API_BASE_URL}/auth/users/${id}/department`,
     UPDATE_GROUP: (id: string) => `${API_BASE_URL}/auth/users/${id}/group`,
     UPDATE_ROLE: (id: string) => `${API_BASE_URL}/auth/users/${id}/role`,

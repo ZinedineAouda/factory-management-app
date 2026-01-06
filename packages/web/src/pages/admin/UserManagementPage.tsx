@@ -66,9 +66,11 @@ interface WorkerStatistics {
 const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [workers, setWorkers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingPending, setLoadingPending] = useState(false);
   const [statistics, setStatistics] = useState<Record<string, WorkerStatistics>>({});
   const [loadingStats, setLoadingStats] = useState<Record<string, boolean>>({});
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -82,10 +84,17 @@ const UserManagementPage: React.FC = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [tabValue, setTabValue] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [filterRole, setFilterRole] = useState<string>('all');
+  const [filterDepartment, setFilterDepartment] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const { token, user: currentUser } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     fetchUsers();
+    fetchPendingUsers();
     fetchDepartments();
     fetchGroups();
   }, []);
@@ -103,6 +112,39 @@ const UserManagementPage: React.FC = () => {
       setError('Failed to fetch users');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingUsers = async () => {
+    try {
+      setLoadingPending(true);
+      const response = await axios.get(ApiEndpoints.USERS.PENDING, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPendingUsers(response.data);
+    } catch (error: any) {
+      console.error('Failed to fetch pending users:', error);
+    } finally {
+      setLoadingPending(false);
+    }
+  };
+
+  const handleApproveUser = async (user: User) => {
+    try {
+      setError(null);
+      await axios.post(
+        ApiEndpoints.USERS.APPROVE(user.id),
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Refresh both lists
+      fetchUsers();
+      fetchPendingUsers();
+    } catch (error: any) {
+      console.error('Approve user error:', error);
+      const errorMessage =
+        error.response?.data?.error || error.message || 'Failed to approve user';
+      setError(errorMessage);
     }
   };
 
@@ -258,13 +300,75 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
-  const displayUsers = tabValue === 0 ? workers : users;
-  const filteredUsers = displayUsers.filter(
-    (user) =>
+  const displayUsers = tabValue === 0 ? pendingUsers : tabValue === 1 ? workers : users;
+  
+  const filteredUsers = displayUsers.filter((user) => {
+    // Search filter
+    const matchesSearch =
       (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
       ((user as any).username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-      (user.departmentName?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-  );
+      (user.departmentName?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // Role filter
+    if (filterRole !== 'all' && user.role !== filterRole) return false;
+    
+    // Department filter
+    if (filterDepartment !== 'all') {
+      if (filterDepartment === 'none' && user.departmentId) return false;
+      if (filterDepartment !== 'none' && user.departmentId !== filterDepartment) return false;
+    }
+    
+    // Status filter
+    if (filterStatus !== 'all') {
+      const userStatus = (user as any).status || (user.isActive ? 'active' : 'inactive');
+      if (filterStatus === 'active' && userStatus !== 'active') return false;
+      if (filterStatus === 'inactive' && userStatus === 'active') return false;
+      if (filterStatus === 'pending' && userStatus !== 'pending') return false;
+    }
+    
+    return true;
+  });
+
+  const handleOpenFilterDialog = () => {
+    setFilterDialogOpen(true);
+  };
+
+  const handleCloseFilterDialog = () => {
+    setFilterDialogOpen(false);
+  };
+
+  const handleApplyFilters = () => {
+    const filters: string[] = [];
+    if (filterRole !== 'all') filters.push(`Role: ${filterRole}`);
+    if (filterDepartment !== 'all') {
+      filters.push(`Dept: ${filterDepartment === 'none' ? 'None' : departments.find(d => d.id === filterDepartment)?.name || filterDepartment}`);
+    }
+    if (filterStatus !== 'all') filters.push(`Status: ${filterStatus}`);
+    setActiveFilters(new Set(filters));
+    handleCloseFilterDialog();
+  };
+
+  const handleClearFilters = () => {
+    setFilterRole('all');
+    setFilterDepartment('all');
+    setFilterStatus('all');
+    setActiveFilters(new Set());
+    handleCloseFilterDialog();
+  };
+
+  const handleInviteUser = () => {
+    setInviteDialogOpen(true);
+  };
+
+  const handleCloseInviteDialog = () => {
+    setInviteDialogOpen(false);
+  };
+
+  const handleNavigateToCodeGeneration = () => {
+    window.location.href = '/admin/codes';
+  };
 
   const columns = [
     {
@@ -362,9 +466,13 @@ const UserManagementPage: React.FC = () => {
       id: 'status',
       label: 'Status',
       width: 100,
-      render: (row: User) => (
-        <StatusBadge status={row.isActive ? 'success' : 'default'} label={row.isActive ? 'Active' : 'Inactive'} />
-      ),
+      render: (row: User) => {
+        const status = (row as any).status || (row.isActive ? 'active' : 'inactive');
+        if (status === 'pending') {
+          return <StatusBadge status="warning" label="Pending" />;
+        }
+        return <StatusBadge status={row.isActive ? 'success' : 'default'} label={row.isActive ? 'Active' : 'Inactive'} />;
+      },
     },
     {
       id: 'actions',
@@ -373,17 +481,33 @@ const UserManagementPage: React.FC = () => {
       align: 'right' as const,
       render: (row: User) => (
         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
-          <Tooltip title="Edit Role, Department & Group">
-            <IconButton size="small" onClick={() => handleOpenAssignDialog(row)}>
-              <Edit sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-          {row.id !== currentUser?.id && (
-            <Tooltip title="Delete User">
-              <IconButton size="small" onClick={() => handleOpenDeleteDialog(row)} sx={{ color: colors.error[500] }}>
-                <Delete sx={{ fontSize: 16 }} />
-              </IconButton>
+          {(row as any).status === 'pending' ? (
+            <Tooltip title="Approve User">
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                onClick={() => handleApproveUser(row)}
+                sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+              >
+                Approve
+              </Button>
             </Tooltip>
+          ) : (
+            <>
+              <Tooltip title="Edit Role, Department & Group">
+                <IconButton size="small" onClick={() => handleOpenAssignDialog(row)}>
+                  <Edit sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              {row.id !== currentUser?.id && (
+                <Tooltip title="Delete User">
+                  <IconButton size="small" onClick={() => handleOpenDeleteDialog(row)} sx={{ color: colors.error[500] }}>
+                    <Delete sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </>
           )}
         </Box>
       ),
@@ -395,7 +519,7 @@ const UserManagementPage: React.FC = () => {
       title="User Management"
       subtitle="Manage users, assign departments, and view worker statistics"
       actions={
-        <Button variant="contained" startIcon={<Add />}>
+        <Button variant="contained" startIcon={<Add />} onClick={handleInviteUser}>
           Invite User
         </Button>
       }
@@ -426,6 +550,27 @@ const UserManagementPage: React.FC = () => {
             },
           }}
         >
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Pending Approval
+                {pendingUsers.length > 0 && (
+                  <Chip
+                    label={pendingUsers.length}
+                    size="small"
+                    sx={{
+                      height: 20,
+                      minWidth: 20,
+                      backgroundColor: colors.warning[500],
+                      color: '#fff',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                    }}
+                  />
+                )}
+              </Box>
+            } 
+          />
           <Tab label={`Workers (${workers.length})`} />
           <Tab label={`All Users (${users.length})`} />
         </Tabs>
@@ -445,9 +590,45 @@ const UserManagementPage: React.FC = () => {
             }}
             sx={{ width: 240 }}
           />
-          <Button variant="outlined" startIcon={<FilterList sx={{ fontSize: 18 }} />}>
+          <Button 
+            variant="outlined" 
+            startIcon={<FilterList sx={{ fontSize: 18 }} />}
+            onClick={handleOpenFilterDialog}
+            sx={{
+              ...(activeFilters.size > 0 && {
+                backgroundColor: alpha(colors.primary[500], 0.1),
+                borderColor: colors.primary[500],
+                color: colors.primary[400],
+              }),
+            }}
+          >
             Filters
+            {activeFilters.size > 0 && (
+              <Chip
+                label={activeFilters.size}
+                size="small"
+                sx={{
+                  ml: 1,
+                  height: 20,
+                  minWidth: 20,
+                  backgroundColor: colors.primary[500],
+                  color: '#fff',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                }}
+              />
+            )}
           </Button>
+          {activeFilters.size > 0 && (
+            <Button
+              variant="text"
+              size="small"
+              onClick={handleClearFilters}
+              sx={{ color: colors.neutral[400], fontSize: '0.75rem' }}
+            >
+              Clear
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -455,9 +636,13 @@ const UserManagementPage: React.FC = () => {
       <DataTable
         columns={columns}
         data={filteredUsers}
-        loading={loading}
+        loading={loading || (tabValue === 0 && loadingPending)}
         rowKey={(row) => row.id}
-        emptyMessage={`No ${tabValue === 0 ? 'workers' : 'users'} found`}
+        emptyMessage={
+          tabValue === 0 
+            ? 'No pending users. All registrations have been approved.' 
+            : `No ${tabValue === 1 ? 'workers' : 'users'} found`
+        }
       />
 
       {/* Expanded Statistics Section - Rendered as Cards Below Table */}
@@ -646,6 +831,97 @@ const UserManagementPage: React.FC = () => {
             Delete User
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Filter Dialog */}
+      <Dialog open={filterDialogOpen} onClose={handleCloseFilterDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Filter Users</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mb: 2, mt: 2 }}>
+            <InputLabel>Role</InputLabel>
+            <Select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              label="Role"
+            >
+              <MenuItem value="all">All Roles</MenuItem>
+              <MenuItem value={UserRole.WORKER}>Worker</MenuItem>
+              <MenuItem value={UserRole.OPERATOR}>Operator</MenuItem>
+              <MenuItem value={UserRole.LEADER}>Leader</MenuItem>
+              <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Department</InputLabel>
+            <Select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              label="Department"
+            >
+              <MenuItem value="all">All Departments</MenuItem>
+              <MenuItem value="none">No Department</MenuItem>
+              {departments.map((dept) => (
+                <MenuItem key={dept.id} value={dept.id}>
+                  {dept.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              label="Status"
+            >
+              <MenuItem value="all">All Statuses</MenuItem>
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseFilterDialog} variant="outlined">
+            Cancel
+          </Button>
+          <Button onClick={handleClearFilters} variant="text" color="inherit">
+            Clear All
+          </Button>
+          <Button onClick={handleApplyFilters} variant="contained">
+            Apply Filters
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Invite User Dialog */}
+      <Dialog open={inviteDialogOpen} onClose={handleCloseInviteDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Invite New User</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '0.9375rem', color: colors.neutral[300], mb: 3, mt: 1 }}>
+            To invite a new user, generate a registration code. Users will use this code to register and create their account.
+          </Typography>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Registration codes are role-specific. Make sure to generate the appropriate code for the user's intended role.
+          </Alert>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleNavigateToCodeGeneration}
+              sx={{ py: 1.5 }}
+            >
+              Go to Code Generation
+            </Button>
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={handleCloseInviteDialog}
+            >
+              Cancel
+            </Button>
+          </Box>
+        </DialogContent>
       </Dialog>
     </PageContainer>
   );

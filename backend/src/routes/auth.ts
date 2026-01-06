@@ -91,10 +91,18 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Admin accounts cannot be registered' });
     }
 
-    // Check if username already exists
-    const existingUser = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+    // Check if username already exists (case-insensitive)
+    const existingUser = await dbGet('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', [username]);
     if (existingUser) {
       return res.status(400).json({ error: 'Username already taken' });
+    }
+
+    // Check if email already exists (if email is provided)
+    if (req.body.email) {
+      const existingEmail = await dbGet('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [req.body.email]);
+      if (existingEmail) {
+        return res.status(400).json({ error: 'Email already registered' });
+      }
     }
 
     // Hash password
@@ -122,8 +130,35 @@ router.post('/register', async (req, res) => {
     // Don't generate token - user must be approved first
     const user = await dbGet('SELECT id, username, role, department_id, status, created_at, is_active FROM users WHERE id = ?', [userId]);
 
+    // Notify all admins about pending user approval (only if status is pending)
+    if (initialStatus === 'pending') {
+      try {
+        const admins = await dbAll('SELECT id FROM users WHERE role = ? AND status = ?', ['admin', 'active']);
+        for (const admin of admins) {
+          const notificationId = uuidv4();
+          await dbRun(
+            'INSERT INTO notifications (id, user_id, type, title, message, related_id, is_read) VALUES (?, ?, ?, ?, ?, ?, 0)',
+            [
+              notificationId,
+              admin.id,
+              'user_registered',
+              'New User Registration',
+              `User "${username}" (${code.role}) has registered and is pending approval.`,
+              userId
+            ]
+          );
+        }
+        console.log(`✅ Notified ${admins.length} admin(s) about pending user: ${username}`);
+      } catch (notifError: any) {
+        console.error('Error creating admin notifications:', notifError);
+        // Don't fail registration if notification fails
+      }
+    }
+
     res.json({
-      message: 'Registration successful. Your account is pending approval by an administrator.',
+      message: initialStatus === 'active' 
+        ? 'Registration successful. You can now log in.'
+        : 'Registration successful. Your account is pending approval by an administrator.',
       user: {
         id: user.id,
         username: user.username,
@@ -346,6 +381,25 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
       'UPDATE users SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       ['active', id]
     );
+
+    // Notify the approved user
+    try {
+      const notificationId = uuidv4();
+      await dbRun(
+        'INSERT INTO notifications (id, user_id, type, title, message, related_id, is_read) VALUES (?, ?, ?, ?, ?, ?, 0)',
+        [
+          notificationId,
+          id,
+          'account_approved',
+          'Account Approved',
+          'Your account has been approved. You can now log in and access the system.',
+          id
+        ]
+      );
+    } catch (notifError: any) {
+      console.error('Error creating approval notification:', notifError);
+      // Don't fail approval if notification fails
+    }
 
     res.json({
       message: 'User approved successfully',
