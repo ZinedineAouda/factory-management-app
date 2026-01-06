@@ -247,8 +247,8 @@ const UserManagementPage: React.FC = () => {
   const displayUsers = tabValue === 0 ? workers : users;
   const filteredUsers = displayUsers.filter(
     (user) =>
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.departmentName?.toLowerCase().includes(searchQuery.toLowerCase())
+      (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (user.departmentName?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   const columns = [
