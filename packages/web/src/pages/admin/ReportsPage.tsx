@@ -31,7 +31,7 @@ interface Report {
   message: string;
   created_at: string;
   operator_username: string;
-  department_name: string;
+  departmentName: string;
 }
 
 const ReportsPage: React.FC = () => {
@@ -85,7 +85,7 @@ const ReportsPage: React.FC = () => {
               {row.message.length > 60 ? `${row.message.substring(0, 60)}...` : row.message}
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
-              {row.department_name}
+              {row.departmentName}
             </Typography>
           </Box>
         </Box>

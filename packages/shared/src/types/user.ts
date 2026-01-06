@@ -11,6 +11,8 @@ export interface User {
   role: UserRole;
   departmentId?: string;
   departmentName?: string;
+  groupId?: string | null;
+  groupName?: string | null;
   createdAt: string;
   isActive: boolean;
 }

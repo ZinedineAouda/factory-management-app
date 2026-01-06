@@ -5,7 +5,6 @@ import {
   Box,
   Typography,
   Grid,
-  Button,
   alpha,
 } from '@mui/material';
 import {
@@ -26,8 +25,8 @@ const WorkerDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
 
-  const isProduction = user?.department_name?.toLowerCase() === 'production';
-  const isMaintenance = user?.department_name?.toLowerCase() === 'maintenance';
+  const isProduction = user?.departmentName?.toLowerCase() === 'production';
+  const isMaintenance = user?.departmentName?.toLowerCase() === 'maintenance';
 
   const quickActions = isProduction
     ? [
@@ -76,7 +75,7 @@ const WorkerDashboardPage: React.FC = () => {
   return (
     <PageContainer
       title="Dashboard"
-      subtitle={`Welcome back! ${user?.department_name ? `You're assigned to ${user.department_name} department.` : 'Contact admin to get assigned to a department.'}`}
+      subtitle={`Welcome back! ${user?.departmentName ? `You're assigned to ${user.departmentName} department.` : 'Contact admin to get assigned to a department.'}`}
     >
       {/* Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -190,7 +189,7 @@ const WorkerDashboardPage: React.FC = () => {
       </Box>
 
       {/* Department Status */}
-      {!user?.department_name && (
+      {!user?.departmentName && (
         <Box
           sx={{
             mt: 3,

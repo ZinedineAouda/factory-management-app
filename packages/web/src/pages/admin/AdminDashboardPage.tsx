@@ -70,6 +70,9 @@ interface Activity {
   type: string;
   description: string;
   timestamp: string;
+  action?: string;
+  username?: string;
+  created_at?: string;
   user?: string;
 }
 

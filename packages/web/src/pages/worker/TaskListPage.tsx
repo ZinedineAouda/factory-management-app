@@ -18,7 +18,6 @@ import {
 import {
   Refresh,
   Assignment,
-  AddCircleOutline,
 } from '@mui/icons-material';
 import Header from '../../components/layout/Header';
 import TaskCard from '../../components/task/TaskCard';

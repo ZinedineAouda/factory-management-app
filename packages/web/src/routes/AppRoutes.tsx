@@ -61,7 +61,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/tasks"
         element={
-          <ProtectedRoute allowedRoles={['worker']}>
+          <ProtectedRoute allowedRoles={[UserRole.WORKER]}>
             <TaskListPage />
           </ProtectedRoute>
         }
@@ -69,7 +69,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/tasks/:taskId"
         element={
-          <ProtectedRoute allowedRoles={['worker']}>
+          <ProtectedRoute allowedRoles={[UserRole.WORKER]}>
             <TaskDetailPage />
           </ProtectedRoute>
         }
@@ -77,7 +77,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute allowedRoles={['worker']}>
+          <ProtectedRoute allowedRoles={[UserRole.WORKER]}>
             <WorkerDashboardPage />
           </ProtectedRoute>
         }

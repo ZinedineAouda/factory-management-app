@@ -39,7 +39,7 @@ const ProfilePage: React.FC = () => {
     { label: 'Username', value: (user as any)?.username || '—', icon: <Person /> },
     { label: 'Email', value: (user as any)?.email || '—', icon: <Email /> },
     { label: 'Role', value: user?.role || '—', icon: <Badge /> },
-    { label: 'Department', value: user?.department_name || 'Not assigned', icon: <Business /> },
+    { label: 'Department', value: user?.departmentName || 'Not assigned', icon: <Business /> },
     { label: 'Group', value: (user as any)?.group_name || 'Not assigned', icon: <Group /> },
     { label: 'Member Since', value: (user as any)?.createdAt ? new Date((user as any).createdAt).toLocaleDateString() : '—', icon: <CalendarToday /> },
   ];
@@ -80,7 +80,7 @@ const ProfilePage: React.FC = () => {
             <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[500], mt: 0.5, textTransform: 'capitalize' }}>
               {user?.role}
             </Typography>
-            {user?.department_name && (
+            {user?.departmentName && (
               <Box
                 sx={{
                   mt: 2,
@@ -92,7 +92,7 @@ const ProfilePage: React.FC = () => {
                 }}
               >
                 <Typography sx={{ fontSize: '0.8125rem', color: colors.primary[400] }}>
-                  {user.department_name}
+                  {user.departmentName}
                 </Typography>
               </Box>
             )}

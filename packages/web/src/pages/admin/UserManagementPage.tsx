@@ -49,18 +49,8 @@ import { colors } from '../../theme';
 import axios from 'axios';
 import { ApiEndpoints } from '../../api/endpoints-override';
 import { RootState } from '../../store';
+import { User, UserRole } from '@factory-app/shared';
 
-interface User {
-  id: string;
-  email: string;
-  role: 'admin' | 'worker';
-  departmentId: string | null;
-  departmentName: string | null;
-  groupId?: string | null;
-  groupName?: string | null;
-  createdAt: string;
-  isActive: boolean;
-}
 
 interface Department {
   id: string;
@@ -116,7 +106,7 @@ const UserManagementPage: React.FC = () => {
       });
       const allUsers = response.data;
       setUsers(allUsers);
-      setWorkers(allUsers.filter((u: User) => u.role === 'worker'));
+      setWorkers(allUsers.filter((u: User) => u.role === UserRole.WORKER));
     } catch (error: any) {
       setError('Failed to fetch users');
     } finally {
@@ -276,7 +266,7 @@ const UserManagementPage: React.FC = () => {
       label: '',
       width: 48,
       render: (row: User) =>
-        row.role === 'worker' ? (
+        row.role === UserRole.WORKER ? (
           <IconButton size="small" onClick={() => handleToggleExpand(row.id)}>
             {expandedRows.has(row.id) ? (
               <ExpandLess sx={{ fontSize: 18 }} />
@@ -377,7 +367,7 @@ const UserManagementPage: React.FC = () => {
       align: 'right' as const,
       render: (row: User) => (
         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
-          {row.role === 'worker' && (
+          {row.role === UserRole.WORKER && (
             <Tooltip title="Assign Department">
               <IconButton size="small" onClick={() => handleOpenAssignDialog(row)}>
                 <Edit sx={{ fontSize: 16 }} />
@@ -468,7 +458,7 @@ const UserManagementPage: React.FC = () => {
 
       {/* Expanded Statistics Section - Rendered as Cards Below Table */}
       {filteredUsers.map((user) => {
-        if (user.role !== 'worker' || !expandedRows.has(user.id)) return null;
+        if (user.role !== UserRole.WORKER || !expandedRows.has(user.id)) return null;
         const userStats = statistics[user.id];
         const isLoadingStats = loadingStats[user.id];
 
