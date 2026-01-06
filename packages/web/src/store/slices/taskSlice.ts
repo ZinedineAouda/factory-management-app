@@ -24,7 +24,11 @@ const getAuthHeaders = (getState: () => RootState): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export const fetchTasks = createAsyncThunk(
+export const fetchTasks = createAsyncThunk<
+  Task[],
+  void,
+  { state: RootState }
+>(
   'tasks/fetchAll',
   async (_, { getState, rejectWithValue }) => {
     try {
@@ -54,7 +58,11 @@ export const fetchTasks = createAsyncThunk(
   }
 );
 
-export const fetchTaskDetail = createAsyncThunk(
+export const fetchTaskDetail = createAsyncThunk<
+  Task,
+  string,
+  { state: RootState }
+>(
   'tasks/fetchDetail',
   async (taskId: string, { getState, rejectWithValue }) => {
     try {
@@ -84,7 +92,11 @@ export const fetchTaskDetail = createAsyncThunk(
   }
 );
 
-export const updateTaskProgress = createAsyncThunk(
+export const updateTaskProgress = createAsyncThunk<
+  Task,
+  { taskId: string; data: UpdateTaskProgressData },
+  { state: RootState }
+>(
   'tasks/updateProgress',
   async ({ taskId, data }: { taskId: string; data: UpdateTaskProgressData }, { getState, rejectWithValue }) => {
     try {

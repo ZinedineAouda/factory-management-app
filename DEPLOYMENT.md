@@ -223,9 +223,9 @@ We'll use **Vercel** (best for React apps).
 2. **Configure Project**:
    - **Framework Preset**: Vite (or React)
    - **Root Directory**: `packages/web` (click "Edit" and change it)
-   - **Build Command**: `npm run build` (should auto-detect)
+   - **Build Command**: `cd ../.. && npm install && npm run build:shared && cd packages/web && npm run build`
    - **Output Directory**: `dist` (should auto-detect)
-   - **Install Command**: `cd ../.. && npm install && cd packages/web`
+   - **Install Command**: `cd ../.. && npm install`
 
 3. **Environment Variables**:
    - Click "Environment Variables"

@@ -103,7 +103,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/operator/dashboard"
         element={
-          <ProtectedRoute allowedRoles={['operator']}>
+          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
             <OperatorDashboardPage />
           </ProtectedRoute>
         }
@@ -111,7 +111,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/operator/tasks"
         element={
-          <ProtectedRoute allowedRoles={['operator']}>
+          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
             <OperatorTaskListPage />
           </ProtectedRoute>
         }
@@ -119,7 +119,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/operator/tasks/create"
         element={
-          <ProtectedRoute allowedRoles={['operator']}>
+          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
             <OperatorTaskCreatePage />
           </ProtectedRoute>
         }
@@ -127,7 +127,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/operator/tasks/:taskId"
         element={
-          <ProtectedRoute allowedRoles={['operator']}>
+          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
             <OperatorTaskDetailPage />
           </ProtectedRoute>
         }
@@ -136,7 +136,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/operator/tasks/:taskId/report"
         element={
-          <ProtectedRoute allowedRoles={['operator']}>
+          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
             <OperatorReportPage />
           </ProtectedRoute>
         }
