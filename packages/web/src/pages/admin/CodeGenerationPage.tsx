@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import {
   Typography,
   Box,
@@ -16,7 +16,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
   Alert,
   Chip,
   IconButton,

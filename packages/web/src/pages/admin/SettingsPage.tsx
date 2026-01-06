@@ -7,13 +7,11 @@ import {
   CardContent,
   TextField,
   Button,
-  Divider,
   Switch,
   FormControlLabel,
   Alert,
   CircularProgress,
   Grid,
-  alpha,
 } from '@mui/material';
 import {
   Person,
@@ -43,7 +41,6 @@ interface NotificationPreferences {
 const SettingsPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { user, token } = useSelector((state: RootState) => state.auth);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<Record<string, boolean>>({});
@@ -134,7 +131,7 @@ const SettingsPage: React.FC = () => {
       setSaving((prev) => ({ ...prev, username: true }));
       setError(null);
 
-      const response = await axios.put(
+      await axios.put(
         ApiEndpoints.SETTINGS.CHANGE_USERNAME,
         {
           newUsername: usernameData.newUsername,

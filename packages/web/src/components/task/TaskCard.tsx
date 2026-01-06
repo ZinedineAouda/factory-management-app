@@ -7,7 +7,6 @@ import {
   Chip,
   LinearProgress,
   Box,
-  IconButton,
 } from '@mui/material';
 import {
   ArrowForward,

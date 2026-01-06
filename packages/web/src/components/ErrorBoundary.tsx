@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Box, Typography, Button, Paper, Container } from '@mui/material';
+import { Component, ErrorInfo, ReactNode } from 'react';
+import { Typography, Button, Paper, Container } from '@mui/material';
 
 interface Props {
   children: ReactNode;

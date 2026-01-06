@@ -1,3 +1,4 @@
+/// <reference types="../types/global" />
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
 export class ApiClient {

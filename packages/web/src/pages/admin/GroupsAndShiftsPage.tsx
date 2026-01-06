@@ -26,7 +26,7 @@ import {
   FilterList,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
-import { DataTable, EmptyState, StatusBadge } from '../../components/ui';
+import { DataTable, EmptyState } from '../../components/ui';
 import { colors } from '../../theme';
 import axios from 'axios';
 import { ApiEndpoints } from '../../api/endpoints-override';

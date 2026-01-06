@@ -124,7 +124,7 @@ const TaskManagementPage: React.FC = () => {
           <Paper sx={{ mb: 3 }}>
             <Tabs
               value={selectedDepartmentId}
-              onChange={(e, newValue) => setSelectedDepartmentId(newValue)}
+              onChange={(_e, newValue) => setSelectedDepartmentId(newValue)}
               variant="scrollable"
               scrollButtons="auto"
               aria-label="department tabs"

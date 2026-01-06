@@ -29,7 +29,6 @@ import {
   Save,
   Refresh,
   Security,
-  Visibility,
   Edit,
   People,
   Business,
@@ -40,7 +39,6 @@ import {
   Analytics,
   Add,
   Delete,
-  Close,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { colors } from '../../theme';

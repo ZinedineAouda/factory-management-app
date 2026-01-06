@@ -1,5 +1,5 @@
 import React from 'react';
-import { Fade, Slide } from '@mui/material';
+import { Fade } from '@mui/material';
 import { useLocation } from 'react-router-dom';
 
 interface PageTransitionProps {

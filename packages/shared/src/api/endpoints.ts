@@ -1,3 +1,4 @@
+/// <reference types="../types/global" />
 // API Base URL configuration
 // This will be overridden in web/mobile apps to use environment variables
 // Default fallback for development

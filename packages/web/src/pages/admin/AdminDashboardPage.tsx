@@ -22,8 +22,6 @@ import {
   MoreVert,
   Inventory,
   CheckCircle,
-  Schedule,
-  PendingActions,
   Delete,
 } from '@mui/icons-material';
 import {
@@ -34,14 +32,12 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
 } from 'recharts';
 import PageContainer from '../../components/layout/PageContainer';
-import { StatCard, StatusBadge } from '../../components/ui';
+import { StatCard } from '../../components/ui';
 import { colors } from '../../theme';
 import { RootState } from '../../store';
 import axios from 'axios';
@@ -546,7 +542,7 @@ const AdminDashboardPage: React.FC = () => {
                       </Box>
                     </Box>
                     <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[600] }}>
-                      {formatTimeAgo(activity.created_at)}
+                      {activity.created_at ? formatTimeAgo(activity.created_at) : 'Just now'}
                     </Typography>
                   </Box>
                 ))
