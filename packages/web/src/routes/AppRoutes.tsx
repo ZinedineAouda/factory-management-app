@@ -44,33 +44,37 @@ const AppRoutes: React.FC = () => {
         element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />}
       />
 
-      {/* Worker/Operator Routes */}
+      {/* Root route - redirect based on auth state */}
       <Route
         path="/"
         element={
-          <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.ADMIN, UserRole.OPERATOR, UserRole.LEADER]}>
-            {(() => {
-              // Normalize role for comparison
-              const userRole = user?.role as string;
-              
-              if (!userRole) {
-                return <Navigate to="/login" replace />;
-              }
-              
-              if (userRole === UserRole.ADMIN || userRole === 'admin') {
-                return <Navigate to="/admin/dashboard" replace />;
-              }
-              if (userRole === UserRole.OPERATOR || userRole === 'operator') {
-                return <Navigate to="/operator/dashboard" replace />;
-              }
-              if (userRole === UserRole.LEADER || userRole === 'leader') {
-                return <Navigate to="/leader/dashboard" replace />;
-              }
-              
-              // Default to tasks for worker or unknown roles
-              return <Navigate to="/tasks" replace />;
-            })()}
-          </ProtectedRoute>
+          !isAuthenticated ? (
+            <Navigate to="/login" replace />
+          ) : (
+            <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.ADMIN, UserRole.OPERATOR, UserRole.LEADER]}>
+              {(() => {
+                // Normalize role for comparison
+                const userRole = user?.role as string;
+                
+                if (!userRole) {
+                  return <Navigate to="/login" replace />;
+                }
+                
+                if (userRole === UserRole.ADMIN || userRole === 'admin') {
+                  return <Navigate to="/admin/dashboard" replace />;
+                }
+                if (userRole === UserRole.OPERATOR || userRole === 'operator') {
+                  return <Navigate to="/operator/dashboard" replace />;
+                }
+                if (userRole === UserRole.LEADER || userRole === 'leader') {
+                  return <Navigate to="/leader/dashboard" replace />;
+                }
+                
+                // Default to tasks for worker or unknown roles
+                return <Navigate to="/tasks" replace />;
+              })()}
+            </ProtectedRoute>
+          )
         }
       />
       <Route
