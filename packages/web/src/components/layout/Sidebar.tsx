@@ -51,9 +51,12 @@ interface NavItem {
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  open?: boolean;
+  onClose?: () => void;
+  isMobile?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onClose, isMobile = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useSelector((state: RootState) => state.auth);
@@ -128,6 +131,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             handleToggleExpand(item.label);
           } else {
             navigate(item.path);
+            // Close sidebar on mobile after navigation
+            if (isMobile && onClose) {
+              onClose();
+            }
           }
         }}
         sx={{
@@ -216,17 +223,28 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   return (
     <Box
       sx={{
-        width: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+        width: {
+          xs: isMobile ? SIDEBAR_WIDTH : 0,
+          md: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+        },
         height: '100vh',
         position: 'fixed',
         left: 0,
         top: 0,
         backgroundColor: colors.neutral[950],
         borderRight: `1px solid ${colors.neutral[800]}`,
-        display: 'flex',
+        display: {
+          xs: isMobile && open ? 'flex' : 'none',
+          md: 'flex',
+        },
         flexDirection: 'column',
-        transition: 'width 0.2s ease',
+        transition: 'width 0.2s ease, transform 0.2s ease',
         zIndex: 1200,
+        transform: {
+          xs: isMobile && open ? 'translateX(0)' : 'translateX(-100%)',
+          md: 'translateX(0)',
+        },
+        overflowX: 'hidden',
       }}
     >
       {/* Logo Section */}

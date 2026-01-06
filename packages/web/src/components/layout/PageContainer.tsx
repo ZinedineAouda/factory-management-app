@@ -61,8 +61,8 @@ const PageContainer: React.FC<PageContainerProps> = ({
               sx={{
                 maxWidth: fullWidth ? 'none' : 1400,
                 mx: 'auto',
-                px: 4,
-                py: 2.5,
+                px: { xs: 2, sm: 3, md: 4 },
+                py: { xs: 2, md: 2.5 },
               }}
             >
               {/* Breadcrumbs */}
@@ -120,9 +120,10 @@ const PageContainer: React.FC<PageContainerProps> = ({
               <Box
                 sx={{
                   display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
                   justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  gap: 3,
+                  alignItems: { xs: 'flex-start', sm: 'flex-start' },
+                  gap: 2,
                 }}
               >
                 <Box>
@@ -133,6 +134,7 @@ const PageContainer: React.FC<PageContainerProps> = ({
                         fontWeight: 700,
                         color: colors.neutral[50],
                         letterSpacing: '-0.02em',
+                        fontSize: { xs: '1.5rem', sm: '2rem' },
                       }}
                     >
                       {title}
@@ -151,7 +153,15 @@ const PageContainer: React.FC<PageContainerProps> = ({
                   )}
                 </Box>
                 {actions && (
-                  <Box sx={{ display: 'flex', gap: 1.5, flexShrink: 0 }}>
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      gap: 1.5, 
+                      flexShrink: 0,
+                      flexWrap: 'wrap',
+                      justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+                    }}
+                  >
                     {actions}
                   </Box>
                 )}
@@ -165,8 +175,8 @@ const PageContainer: React.FC<PageContainerProps> = ({
           sx={{
             maxWidth: fullWidth ? 'none' : 1400,
             mx: 'auto',
-            px: 4,
-            py: 3,
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2, md: 3 },
           }}
         >
           {children}

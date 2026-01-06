@@ -68,8 +68,25 @@ function DataTable<T>({
         overflow: 'hidden',
       }}
     >
-      <TableContainer>
-        <Table>
+      <TableContainer
+        sx={{
+          overflowX: 'auto',
+          '&::-webkit-scrollbar': {
+            height: 8,
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: colors.neutral[800],
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: colors.neutral[700],
+            borderRadius: 4,
+            '&:hover': {
+              backgroundColor: colors.neutral[600],
+            },
+          },
+        }}
+      >
+        <Table sx={{ minWidth: 600 }}>
           <TableHead>
             <TableRow>
               {columns.map((col) => (
@@ -86,7 +103,8 @@ function DataTable<T>({
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     py: 1.5,
-                    px: 2,
+                    px: { xs: 1, md: 2 },
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {col.label}
@@ -133,9 +151,10 @@ function DataTable<T>({
                       sx={{
                         borderBottom: `1px solid ${colors.neutral[800]}`,
                         py: 1.5,
-                        px: 2,
+                        px: { xs: 1, md: 2 },
                         fontSize: '0.875rem',
                         color: colors.neutral[200],
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {col.render ? col.render(row) : (row as any)[col.id]}

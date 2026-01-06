@@ -33,6 +33,7 @@ import {
   Info,
   Warning,
   Error as ErrorIcon,
+  Menu as MenuIcon,
 } from '@mui/icons-material';
 import { logout } from '../../store/slices/authSlice';
 import { AppDispatch, RootState } from '../../store';
@@ -43,9 +44,10 @@ import { ApiEndpoints } from '../../api/endpoints-override';
 
 interface TopbarProps {
   sidebarCollapsed: boolean;
+  onMenuClick?: () => void;
 }
 
-const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed }) => {
+const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed, onMenuClick }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { user, token } = useSelector((state: RootState) => state.auth);
@@ -206,7 +208,10 @@ const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed }) => {
       sx={{
         position: 'fixed',
         top: 0,
-        left: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+        left: {
+          xs: 0,
+          md: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+        },
         right: 0,
         height: TOPBAR_HEIGHT,
         backgroundColor: colors.neutral[950],
@@ -214,22 +219,37 @@ const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        px: 3,
+        px: { xs: 2, md: 3 },
         transition: 'left 0.2s ease',
         zIndex: 1100,
       }}
     >
+      {/* Mobile Menu Button */}
+      {onMenuClick && (
+        <IconButton
+          onClick={onMenuClick}
+          size="small"
+          sx={{
+            color: colors.neutral[400],
+            mr: 1,
+            '&:hover': { backgroundColor: alpha(colors.neutral[500], 0.08) },
+          }}
+        >
+          <MenuIcon sx={{ fontSize: 24 }} />
+        </IconButton>
+      )}
+
       {/* Search */}
       <Box
         sx={{
-          display: 'flex',
+          display: { xs: 'none', sm: 'flex' },
           alignItems: 'center',
           backgroundColor: searchFocused ? colors.neutral[900] : colors.neutral[900],
           border: `1px solid ${searchFocused ? colors.neutral[700] : colors.neutral[800]}`,
           borderRadius: 2,
           px: 1.5,
           py: 0.75,
-          width: 320,
+          width: { sm: 200, md: 320 },
           transition: 'all 0.15s ease',
         }}
       >

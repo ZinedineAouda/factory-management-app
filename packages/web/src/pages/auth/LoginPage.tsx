@@ -173,10 +173,10 @@ const LoginPage: React.FC = () => {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          p: 4,
+          p: { xs: 3, sm: 4 },
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: 400 }}>
+        <Box sx={{ width: '100%', maxWidth: { xs: '100%', sm: 400 } }}>
           {/* Mobile Logo */}
           <Box
             sx={{
