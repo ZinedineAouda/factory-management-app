@@ -7,12 +7,14 @@ import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-// Helper function to get user with department info
+// Helper function to get user with department and group info
 const getUserWithDepartment = async (userId: string) => {
   return await dbGet(
-    `SELECT u.id, u.email, u.role, u.department_id, u.created_at, u.is_active, d.name as department_name
+    `SELECT u.id, u.email, u.username, u.role, u.department_id, u.group_id, u.status, u.created_at, u.is_active, 
+            d.name as department_name, g.name as group_name
      FROM users u
      LEFT JOIN departments d ON u.department_id = d.id
+     LEFT JOIN groups g ON u.group_id = g.id
      WHERE u.id = ?`,
     [userId]
   );
@@ -22,9 +24,13 @@ const getUserWithDepartment = async (userId: string) => {
 const formatUserResponse = (user: any) => ({
   id: user.id,
   email: user.email,
+  username: user.username,
   role: user.role,
+  status: user.status,
   departmentId: user.department_id,
   departmentName: user.department_name,
+  groupId: user.group_id,
+  groupName: user.group_name,
   createdAt: user.created_at,
   isActive: user.is_active === 1,
 });
@@ -155,8 +161,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Check if user is approved (status must be 'active')
-    // Admin users should always be allowed (even if status is null/undefined for backward compatibility)
-    if (user.role !== 'admin' && user.status !== 'active') {
+    if (user.status !== 'active') {
       return res.status(403).json({ 
         error: 'Your account is pending approval. Please wait for administrator approval.' 
       });
@@ -450,6 +455,55 @@ router.put('/users/:id/department', authenticate, requireRole(['admin']), async 
     console.error('Update user department error:', error);
     res.status(500).json({
       error: 'Failed to update user department',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Update user role (Admin only)
+router.put('/users/:id/role', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    // Validate user exists
+    const existingUser = await dbGet('SELECT id, email FROM users WHERE id = ?', [id]);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Validate role
+    const validRoles = ['admin', 'worker', 'operator', 'leader'];
+    if (!role || !validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be: admin, worker, operator, or leader' });
+    }
+
+    // Prevent changing own role
+    if (id === req.user!.id && role !== req.user!.role) {
+      return res.status(400).json({ error: 'You cannot change your own role' });
+    }
+
+    // Update user role
+    try {
+      await dbRun('BEGIN TRANSACTION');
+      await dbRun('UPDATE users SET role = ? WHERE id = ?', [role, id]);
+      await dbRun('COMMIT');
+    } catch (txError: any) {
+      await dbRun('ROLLBACK').catch(() => {});
+      throw txError;
+    }
+
+    // Fetch updated user
+    const updatedUser = await getUserWithDepartment(id);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found after update' });
+    }
+
+    res.json(formatUserResponse(updatedUser));
+  } catch (error: any) {
+    console.error('Update user role error:', error);
+    res.status(500).json({
+      error: 'Failed to update user role',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

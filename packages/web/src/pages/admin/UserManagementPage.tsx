@@ -77,6 +77,7 @@ const UserManagementPage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.WORKER);
   const [error, setError] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [tabValue, setTabValue] = useState(0);
@@ -158,6 +159,7 @@ const UserManagementPage: React.FC = () => {
     setSelectedUser(user);
     setSelectedDepartmentId(user.departmentId || '');
     setSelectedGroupId(user.groupId || '');
+    setSelectedRole(user.role);
     setAssignDialogOpen(true);
     setError(null);
   };
@@ -167,6 +169,7 @@ const UserManagementPage: React.FC = () => {
     setSelectedUser(null);
     setSelectedDepartmentId('');
     setSelectedGroupId('');
+    setSelectedRole(UserRole.WORKER);
     setError(null);
   };
 
@@ -178,12 +181,23 @@ const UserManagementPage: React.FC = () => {
       const departmentIdToSend = selectedDepartmentId === '' ? null : selectedDepartmentId;
       const groupIdToSend = selectedGroupId === '' ? null : selectedGroupId;
 
+      // Update role if changed
+      if (selectedRole !== selectedUser.role) {
+        await axios.put(
+          ApiEndpoints.USERS.UPDATE_ROLE(selectedUser.id),
+          { role: selectedRole },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+
+      // Update department
       await axios.put(
         ApiEndpoints.USERS.UPDATE_DEPARTMENT(selectedUser.id),
         { departmentId: departmentIdToSend },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      // Update group
       await axios.put(
         ApiEndpoints.USERS.UPDATE_GROUP(selectedUser.id),
         { groupId: groupIdToSend },
@@ -200,7 +214,7 @@ const UserManagementPage: React.FC = () => {
     } catch (error: any) {
       console.error('Assignment error:', error);
       const errorMessage =
-        error.response?.data?.error || error.message || 'Failed to assign department/group';
+        error.response?.data?.error || error.message || 'Failed to assign role/department/group';
       setError(errorMessage);
     }
   };
@@ -359,13 +373,11 @@ const UserManagementPage: React.FC = () => {
       align: 'right' as const,
       render: (row: User) => (
         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
-          {row.role === UserRole.WORKER && (
-            <Tooltip title="Assign Department">
-              <IconButton size="small" onClick={() => handleOpenAssignDialog(row)}>
-                <Edit sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-          )}
+          <Tooltip title="Edit Role, Department & Group">
+            <IconButton size="small" onClick={() => handleOpenAssignDialog(row)}>
+              <Edit sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
           {row.id !== currentUser?.id && (
             <Tooltip title="Delete User">
               <IconButton size="small" onClick={() => handleOpenDeleteDialog(row)} sx={{ color: colors.error[500] }}>
@@ -534,7 +546,7 @@ const UserManagementPage: React.FC = () => {
 
       {/* Assign Dialog */}
       <Dialog open={assignDialogOpen} onClose={handleCloseAssignDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Assign Department & Group</DialogTitle>
+        <DialogTitle>Assign Role, Department & Group</DialogTitle>
         <DialogContent>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -542,8 +554,21 @@ const UserManagementPage: React.FC = () => {
             </Alert>
           )}
           <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mb: 3 }}>
-            Assign department and group for: <strong style={{ color: colors.neutral[100] }}>{selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}</strong>
+            Assign role, department and group for: <strong style={{ color: colors.neutral[100] }}>{selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}</strong>
           </Typography>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Role</InputLabel>
+            <Select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+              label="Role"
+            >
+              <MenuItem value={UserRole.WORKER}>Worker</MenuItem>
+              <MenuItem value={UserRole.OPERATOR}>Operator</MenuItem>
+              <MenuItem value={UserRole.LEADER}>Leader</MenuItem>
+              <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
+            </Select>
+          </FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel>Department</InputLabel>
             <Select
