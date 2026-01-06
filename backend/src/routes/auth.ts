@@ -101,11 +101,16 @@ router.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Create user with status='pending' (requires admin approval)
+    // In development mode, auto-approve users
+    const initialStatus = process.env.NODE_ENV === 'development' && process.env.AUTO_APPROVE_USERS === 'true' 
+      ? 'active' 
+      : 'pending';
+    
     const userId = uuidv4();
     await dbRun(
       `INSERT INTO users (id, username, password_hash, role, department_id, status) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [userId, username, passwordHash, code.role, null, 'pending']
+      [userId, username, passwordHash, code.role, null, initialStatus]
     );
 
     // Mark code as used
@@ -278,6 +283,48 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to get user' });
+  }
+});
+
+// Approve user by username (for convenience - development only)
+router.post('/users/approve/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    // Allow approval without auth in development mode
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev) {
+      return res.status(403).json({ error: 'This endpoint is only available in development mode' });
+    }
+
+    const user = await dbGet('SELECT id, username, status FROM users WHERE username = ?', [username]);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.status === 'active') {
+      return res.json({ 
+        message: 'User is already approved',
+        user: { id: user.id, username: user.username, status: user.status }
+      });
+    }
+
+    await dbRun(
+      'UPDATE users SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      ['active', user.id]
+    );
+
+    res.json({
+      message: 'User approved successfully',
+      user: {
+        id: user.id,
+        username: user.username,
+        status: 'active',
+      },
+    });
+  } catch (error: any) {
+    console.error('Approve user error:', error);
+    res.status(500).json({ error: 'Failed to approve user' });
   }
 });
 
