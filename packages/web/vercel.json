@@ -1,6 +1,12 @@
 {
   "buildCommand": "cd ../.. && npm install && npm run build:shared && cd packages/web && npm run build",
   "installCommand": "cd ../.. && npm install",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
 
