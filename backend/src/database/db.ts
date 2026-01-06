@@ -79,6 +79,8 @@ export const initDatabase = async () => {
   // Add username column if it doesn't exist
   await dbRun(`ALTER TABLE users ADD COLUMN username TEXT`).catch(() => {});
   await dbRun(`ALTER TABLE users ADD COLUMN group_id TEXT`).catch(() => {});
+  // Add status column if it doesn't exist (default 'pending', but admin needs 'active')
+  await dbRun(`ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'pending'`).catch(() => {});
 
   // Departments table
   await dbRun(`
@@ -328,11 +330,36 @@ export const initDatabase = async () => {
     const adminId = uuidv4();
     const hashedPassword = await bcrypt.hash('admin1234', 10);
     await dbRun(
-      'INSERT INTO users (id, username, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?)',
-      [adminId, 'admin', hashedPassword, 'admin', 1]
+      'INSERT INTO users (id, username, password_hash, role, is_active, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [adminId, 'admin', hashedPassword, 'admin', 1, 'active']
     );
     console.log('✅ Created default admin user (username: admin, password: admin1234)');
   } else {
+    // Ensure existing admin user has status='active' and is_active=1
+    const adminUser = await dbGet('SELECT id, status, is_active FROM users WHERE username = ?', ['admin']);
+    if (adminUser) {
+      const updates: string[] = [];
+      const params: any[] = [];
+      
+      if (adminUser.status !== 'active') {
+        updates.push('status = ?');
+        params.push('active');
+      }
+      
+      if (adminUser.is_active !== 1) {
+        updates.push('is_active = ?');
+        params.push(1);
+      }
+      
+      if (updates.length > 0) {
+        params.push(adminUser.id);
+        await dbRun(
+          `UPDATE users SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          params
+        );
+        console.log('✅ Updated admin user status to active');
+      }
+    }
     console.log('✅ Admin user already exists');
   }
 

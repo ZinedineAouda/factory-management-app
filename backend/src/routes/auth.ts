@@ -155,7 +155,8 @@ router.post('/login', async (req, res) => {
     }
 
     // Check if user is approved (status must be 'active')
-    if (user.status !== 'active') {
+    // Admin users should always be allowed (even if status is null/undefined for backward compatibility)
+    if (user.role !== 'admin' && user.status !== 'active') {
       return res.status(403).json({ 
         error: 'Your account is pending approval. Please wait for administrator approval.' 
       });
