@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -30,57 +30,107 @@ const RegisterPage: React.FC = () => {
     registrationCode: '',
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     dispatch(clearError());
   }, [dispatch]);
 
+  // Memoize redirect path calculation
+  const redirectPath = useMemo(() => {
+    if (!user?.role) return null;
+    const userRole = user.role as string;
+    
+    if (userRole === UserRole.ADMIN || userRole === 'admin') return '/admin/dashboard';
+    if (userRole === UserRole.OPERATOR || userRole === 'operator') return '/operator/dashboard';
+    if (userRole === UserRole.LEADER || userRole === 'leader') return '/leader/dashboard';
+    if (userRole === UserRole.WORKER || userRole === 'worker') return '/tasks';
+    
+    return '/';
+  }, [user?.role]);
+
   useEffect(() => {
-    if (isAuthenticated && user) {
-      let redirectPath = '/';
-      
-      if (user.role === UserRole.ADMIN) {
-        redirectPath = '/admin/dashboard';
-      } else if (user.role === UserRole.OPERATOR) {
-        redirectPath = '/operator/dashboard';
-      } else if (user.role === UserRole.LEADER) {
-        redirectPath = '/leader/dashboard';
-      } else if (user.role === UserRole.WORKER) {
-        redirectPath = '/tasks';
-      }
-      
+    if (isAuthenticated && redirectPath) {
       navigate(redirectPath, { replace: true });
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, redirectPath, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setValidationError(null);
+  // Real-time validation
+  const validationError = useMemo(() => {
+    if (!touched.password && !touched.confirmPassword) return null;
     
-    if (formData.password !== formData.confirmPassword) {
-      setValidationError('Passwords do not match');
-      return;
+    if (touched.password && formData.password.length > 0 && formData.password.length < 6) {
+      return 'Password must be at least 6 characters';
     }
+    
+    if (touched.confirmPassword && formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword) {
+      return 'Passwords do not match';
+    }
+    
+    return null;
+  }, [formData.password, formData.confirmPassword, touched]);
 
-    if (formData.password.length < 6) {
-      setValidationError('Password must be at least 6 characters');
+  const isFormValid = useMemo(() => {
+    return (
+      formData.username.trim().length > 0 &&
+      formData.password.length >= 6 &&
+      formData.password === formData.confirmPassword &&
+      formData.registrationCode.trim().length > 0
+    );
+  }, [formData]);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setTouched(prev => ({ ...prev, [name]: true }));
+  }, []);
+
+  const handleBlur = useCallback((field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  }, []);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!isFormValid) {
+      // Mark all fields as touched to show validation errors
+      setTouched({
+        username: true,
+        password: true,
+        confirmPassword: true,
+        registrationCode: true,
+      });
       return;
     }
 
     dispatch(
       register({
-        username: formData.username,
+        username: formData.username.trim(),
         password: formData.password,
-        registrationCode: formData.registrationCode,
+        registrationCode: formData.registrationCode.trim(),
       })
     );
-  };
+  }, [formData, isFormValid, dispatch]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setValidationError(null);
-  };
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
+
+  const getPasswordStrength = useMemo(() => {
+    if (!formData.password) return { strength: 0, label: '', color: '' };
+    
+    let strength = 0;
+    if (formData.password.length >= 6) strength++;
+    if (formData.password.length >= 8) strength++;
+    if (/[A-Z]/.test(formData.password)) strength++;
+    if (/[0-9]/.test(formData.password)) strength++;
+    if (/[^A-Za-z0-9]/.test(formData.password)) strength++;
+    
+    if (strength <= 2) return { strength, label: 'Weak', color: colors.error[500] };
+    if (strength <= 3) return { strength, label: 'Fair', color: colors.warning[500] };
+    if (strength <= 4) return { strength, label: 'Good', color: colors.info[500] };
+    return { strength, label: 'Strong', color: colors.success[500] };
+  }, [formData.password]);
 
   return (
     <Box
@@ -256,8 +306,15 @@ const RegisterPage: React.FC = () => {
             Enter your details to get started
           </Typography>
 
-          {(error || validationError) && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+          {(error || (validationError && Object.keys(touched).length > 0)) && (
+            <Alert 
+              severity="error" 
+              sx={{ mb: 3 }}
+              onClose={() => {
+                dispatch(clearError());
+                setTouched({});
+              }}
+            >
               {validationError || (typeof error === 'string' ? error : ((error as any)?.message || (error as any)?.error || 'An error occurred'))}
             </Alert>
           )}
@@ -269,8 +326,11 @@ const RegisterPage: React.FC = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              onBlur={() => handleBlur('username')}
               required
               autoFocus
+              error={touched.username && !formData.username.trim()}
+              helperText={touched.username && !formData.username.trim() ? 'Username is required' : ''}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -287,7 +347,16 @@ const RegisterPage: React.FC = () => {
               type={showPassword ? 'text' : 'password'}
               value={formData.password}
               onChange={handleChange}
+              onBlur={() => handleBlur('password')}
               required
+              error={touched.password && (formData.password.length > 0 && formData.password.length < 6)}
+              helperText={
+                touched.password && formData.password.length > 0 && formData.password.length < 6
+                  ? 'Password must be at least 6 characters'
+                  : formData.password && touched.password
+                  ? `Password strength: ${getPasswordStrength.label}`
+                  : ''
+              }
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -297,9 +366,10 @@ const RegisterPage: React.FC = () => {
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={togglePasswordVisibility}
                       edge="end"
                       size="small"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? (
                         <VisibilityOff sx={{ fontSize: 20 }} />
@@ -312,6 +382,27 @@ const RegisterPage: React.FC = () => {
               }}
               sx={{ mb: 2 }}
             />
+            {formData.password && touched.password && (
+              <Box sx={{ mb: 2, mt: -1 }}>
+                <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5 }}>
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <Box
+                      key={level}
+                      sx={{
+                        flex: 1,
+                        height: 4,
+                        borderRadius: 1,
+                        backgroundColor:
+                          level <= getPasswordStrength.strength
+                            ? getPasswordStrength.color
+                            : colors.neutral[800],
+                        transition: 'background-color 0.2s',
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
             <TextField
               fullWidth
               label="Confirm Password"
@@ -319,7 +410,24 @@ const RegisterPage: React.FC = () => {
               type={showPassword ? 'text' : 'password'}
               value={formData.confirmPassword}
               onChange={handleChange}
+              onBlur={() => handleBlur('confirmPassword')}
               required
+              error={
+                touched.confirmPassword &&
+                formData.confirmPassword.length > 0 &&
+                formData.password !== formData.confirmPassword
+              }
+              helperText={
+                touched.confirmPassword &&
+                formData.confirmPassword.length > 0 &&
+                formData.password !== formData.confirmPassword
+                  ? 'Passwords do not match'
+                  : touched.confirmPassword &&
+                    formData.confirmPassword.length > 0 &&
+                    formData.password === formData.confirmPassword
+                  ? 'Passwords match'
+                  : ''
+              }
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -335,8 +443,14 @@ const RegisterPage: React.FC = () => {
               name="registrationCode"
               value={formData.registrationCode}
               onChange={handleChange}
+              onBlur={() => handleBlur('registrationCode')}
               required
-              helperText="Enter the code provided by your administrator"
+              error={touched.registrationCode && !formData.registrationCode.trim()}
+              helperText={
+                touched.registrationCode && !formData.registrationCode.trim()
+                  ? 'Registration code is required'
+                  : 'Enter the code provided by your administrator'
+              }
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -352,7 +466,7 @@ const RegisterPage: React.FC = () => {
               fullWidth
               variant="contained"
               size="large"
-              disabled={loading}
+              disabled={loading || !isFormValid}
               sx={{
                 py: 1.5,
                 fontSize: '0.9375rem',

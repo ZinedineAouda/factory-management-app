@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -30,44 +30,78 @@ const LoginPage: React.FC = () => {
     dispatch(clearError());
   }, [dispatch]);
 
+  // Memoize redirect path calculation
+  const redirectPath = useMemo(() => {
+    if (!user?.role) return null;
+    const userRole = user.role as string;
+    
+    if (userRole === UserRole.ADMIN || userRole === 'admin') return '/admin/dashboard';
+    if (userRole === UserRole.OPERATOR || userRole === 'operator') return '/operator/dashboard';
+    if (userRole === UserRole.LEADER || userRole === 'leader') return '/leader/dashboard';
+    if (userRole === UserRole.WORKER || userRole === 'worker') return '/tasks';
+    
+    return '/';
+  }, [user?.role]);
+
   useEffect(() => {
-    // Only redirect if not loading and authenticated
-    if (!loading && isAuthenticated && user && user.role) {
-      // Normalize role to handle both enum and string values
-      const userRole = user.role as string;
-      
-      let redirectPath = '/';
-      
-      // Check against both enum values and string values for robustness
-      if (userRole === UserRole.ADMIN || userRole === 'admin') {
-        redirectPath = '/admin/dashboard';
-      } else if (userRole === UserRole.OPERATOR || userRole === 'operator') {
-        redirectPath = '/operator/dashboard';
-      } else if (userRole === UserRole.LEADER || userRole === 'leader') {
-        redirectPath = '/leader/dashboard';
-      } else if (userRole === UserRole.WORKER || userRole === 'worker') {
-        redirectPath = '/tasks';
-      } else {
-        // Fallback: redirect to root which will handle the redirect
-        redirectPath = '/';
-        console.warn('Unknown user role:', userRole, 'Redirecting to root');
-      }
-      
-      // Small delay to ensure state is fully updated
-      setTimeout(() => {
-        navigate(redirectPath, { replace: true });
-      }, 100);
+    if (!loading && isAuthenticated && redirectPath) {
+      navigate(redirectPath, { replace: true });
     }
-  }, [isAuthenticated, user, loading, navigate]);
+  }, [isAuthenticated, loading, redirectPath, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.username.trim() || !formData.password.trim()) {
+      return;
+    }
     dispatch(login(formData));
-  };
+  }, [formData, dispatch]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
+
+  // Optimize error message extraction
+  const errorMessage = useMemo(() => {
+    if (!error) return null;
+    
+    if (typeof error === 'string') {
+      if (error.includes('Account not found') || error.includes('does not exist') || error.includes('Invalid username')) {
+        return {
+          title: 'Account Not Found',
+          description: 'The username you entered does not exist. Please check your username and try again.',
+        };
+      }
+      if (error.includes('Incorrect password') || (error.includes('password') && error.includes('incorrect'))) {
+        return {
+          title: 'Incorrect Password',
+          description: 'The password you entered is incorrect. Please check your password and try again.',
+        };
+      }
+      if (error.includes('pending approval')) {
+        return {
+          title: 'Account Pending Approval',
+          description: 'Your account is waiting for administrator approval. Please contact your administrator.',
+        };
+      }
+      return {
+        title: 'Login Failed',
+        description: error,
+      };
+    }
+    
+    const errorObj = error as any;
+    const message = errorObj?.message || errorObj?.error || 'An unexpected error occurred. Please try again.';
+    return {
+      title: 'Login Failed',
+      description: message,
+    };
+  }, [error]);
 
   return (
     <Box
@@ -224,7 +258,7 @@ const LoginPage: React.FC = () => {
             Sign in to your account to continue
           </Typography>
 
-          {error && (
+          {errorMessage && (
             <Alert 
               severity="error" 
               sx={{ 
@@ -233,53 +267,14 @@ const LoginPage: React.FC = () => {
                   width: '100%',
                 },
               }}
+              onClose={() => dispatch(clearError())}
             >
               <Box>
                 <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
-                  {(() => {
-                    if (typeof error === 'string') {
-                      // Check for specific error messages
-                      if (error.includes('Account not found') || error.includes('does not exist')) {
-                        return 'Account Not Found';
-                      }
-                      if (error.includes('Incorrect password') || error.includes('password') && error.includes('incorrect')) {
-                        return 'Incorrect Password';
-                      }
-                      if (error.includes('pending approval')) {
-                        return 'Account Pending Approval';
-                      }
-                      return 'Login Failed';
-                    }
-                    const errorObj = error as any;
-                    if (errorObj?.errorCode === 'ACCOUNT_NOT_FOUND' || errorObj?.message?.includes('does not exist')) {
-                      return 'Account Not Found';
-                    }
-                    if (errorObj?.errorCode === 'INVALID_PASSWORD' || errorObj?.message?.includes('password')) {
-                      return 'Incorrect Password';
-                    }
-                    if (errorObj?.errorCode === 'ACCOUNT_PENDING' || errorObj?.message?.includes('pending')) {
-                      return 'Account Pending Approval';
-                    }
-                    return errorObj?.message || errorObj?.error || 'Login Failed';
-                  })()}
+                  {errorMessage.title}
                 </Typography>
                 <Typography sx={{ fontSize: '0.875rem', color: 'inherit', opacity: 0.9 }}>
-                  {(() => {
-                    if (typeof error === 'string') {
-                      if (error.includes('Account not found') || error.includes('does not exist')) {
-                        return 'The username you entered does not exist. Please check your username and try again.';
-                      }
-                      if (error.includes('Incorrect password') || error.includes('password') && error.includes('incorrect')) {
-                        return 'The password you entered is incorrect. Please check your password and try again.';
-                      }
-                      if (error.includes('pending approval')) {
-                        return 'Your account is waiting for administrator approval. Please contact your administrator.';
-                      }
-                      return error;
-                    }
-                    const errorObj = error as any;
-                    return errorObj?.message || errorObj?.error || 'An unexpected error occurred. Please try again.';
-                  })()}
+                  {errorMessage.description}
                 </Typography>
               </Box>
             </Alert>
@@ -323,9 +318,10 @@ const LoginPage: React.FC = () => {
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={togglePasswordVisibility}
                       edge="end"
                       size="small"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? (
                         <VisibilityOff sx={{ fontSize: 20 }} />
@@ -359,7 +355,7 @@ const LoginPage: React.FC = () => {
               fullWidth
               variant="contained"
               size="large"
-              disabled={loading}
+              disabled={loading || !formData.username.trim() || !formData.password.trim()}
               sx={{
                 py: 1.5,
                 fontSize: '0.9375rem',
