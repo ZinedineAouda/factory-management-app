@@ -82,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
     } else if (role === 'operator') {
       return [
         { label: 'Dashboard', icon: <Dashboard />, path: '/operator/dashboard' },
-        { label: 'Create Report', icon: <Description />, path: '/operator/report' },
+        { label: 'Tasks', icon: <Assignment />, path: '/operator/tasks' },
       ];
     } else if (role === 'leader') {
       return [

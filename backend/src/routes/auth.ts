@@ -197,19 +197,29 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        error: 'Account not found',
+        errorCode: 'ACCOUNT_NOT_FOUND',
+        message: 'The username or email you entered does not exist. Please check your credentials and try again.'
+      });
     }
 
     // Check if user is approved (status must be 'active')
     if (user.status !== 'active') {
       return res.status(403).json({ 
-        error: 'Your account is pending approval. Please wait for administrator approval.' 
+        error: 'Account pending approval',
+        errorCode: 'ACCOUNT_PENDING',
+        message: 'Your account is pending approval. Please wait for administrator approval.' 
       });
     }
 
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        error: 'Incorrect password',
+        errorCode: 'INVALID_PASSWORD',
+        message: 'The password you entered is incorrect. Please try again or use the "Forgot password" option if available.'
+      });
     }
 
     const jwtSecret = process.env.JWT_SECRET || 'secret';

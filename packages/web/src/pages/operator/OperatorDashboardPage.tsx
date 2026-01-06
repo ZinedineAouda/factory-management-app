@@ -22,18 +22,18 @@ const OperatorDashboardPage: React.FC = () => {
 
   const quickActions = [
     {
-      title: 'Create Report',
-      description: 'Submit a new production report',
-      icon: <Description />,
-      path: '/operator/report',
-      color: colors.primary[500],
-    },
-    {
       title: 'View Tasks',
-      description: 'See assigned tasks',
+      description: 'See assigned tasks and create reports',
       icon: <Assignment />,
       path: '/operator/tasks',
       color: colors.success[500],
+    },
+    {
+      title: 'Create Report',
+      description: 'Submit a new production report for a task',
+      icon: <Description />,
+      path: '/operator/tasks',
+      color: colors.primary[500],
     },
   ];
 

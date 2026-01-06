@@ -85,7 +85,7 @@ export const loadStoredAuth = createAsyncThunk('auth/loadStored', async (_, { re
         headers: { Authorization: `Bearer ${token}` },
       });
       // Token is valid
-      return { token, user };
+    return { token, user };
     } catch (error) {
       // Token is invalid, clear it
       clearAuth();

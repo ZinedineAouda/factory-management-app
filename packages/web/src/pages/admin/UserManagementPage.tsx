@@ -303,6 +303,12 @@ const UserManagementPage: React.FC = () => {
   const displayUsers = tabValue === 0 ? pendingUsers : tabValue === 1 ? workers : users;
   
   const filteredUsers = displayUsers.filter((user) => {
+    // On pending tab, only show pending users
+    if (tabValue === 0) {
+      const userStatus = (user as any).status || (user.isActive ? 'active' : 'inactive');
+      if (userStatus !== 'pending') return false;
+    }
+    
     // Search filter
     const matchesSearch =
       (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
@@ -320,8 +326,8 @@ const UserManagementPage: React.FC = () => {
       if (filterDepartment !== 'none' && user.departmentId !== filterDepartment) return false;
     }
     
-    // Status filter
-    if (filterStatus !== 'all') {
+    // Status filter (disabled on pending tab since all are pending)
+    if (tabValue !== 0 && filterStatus !== 'all') {
       const userStatus = (user as any).status || (user.isActive ? 'active' : 'inactive');
       if (filterStatus === 'active' && userStatus !== 'active') return false;
       if (filterStatus === 'inactive' && userStatus === 'active') return false;
@@ -338,6 +344,14 @@ const UserManagementPage: React.FC = () => {
   const handleCloseFilterDialog = () => {
     setFilterDialogOpen(false);
   };
+
+  // Reset filters when switching tabs (except pending tab)
+  useEffect(() => {
+    if (tabValue === 0) {
+      // On pending tab, only show pending status
+      setFilterStatus('pending');
+    }
+  }, [tabValue]);
 
   const handleApplyFilters = () => {
     const filters: string[] = [];
@@ -834,15 +848,40 @@ const UserManagementPage: React.FC = () => {
       </Dialog>
 
       {/* Filter Dialog */}
-      <Dialog open={filterDialogOpen} onClose={handleCloseFilterDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Filter Users</DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mb: 2, mt: 2 }}>
-            <InputLabel>Role</InputLabel>
+      <Dialog 
+        open={filterDialogOpen} 
+        onClose={handleCloseFilterDialog} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: colors.neutral[900],
+            border: `1px solid ${colors.neutral[800]}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: colors.neutral[100], borderBottom: `1px solid ${colors.neutral[800]}` }}>
+          Filter Users
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel sx={{ color: colors.neutral[400] }}>Role</InputLabel>
             <Select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
               label="Role"
+              sx={{
+                color: colors.neutral[100],
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[700],
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[600],
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.primary[500],
+                },
+              }}
             >
               <MenuItem value="all">All Roles</MenuItem>
               <MenuItem value={UserRole.WORKER}>Worker</MenuItem>
@@ -852,11 +891,23 @@ const UserManagementPage: React.FC = () => {
             </Select>
           </FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Department</InputLabel>
+            <InputLabel sx={{ color: colors.neutral[400] }}>Department</InputLabel>
             <Select
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value)}
               label="Department"
+              sx={{
+                color: colors.neutral[100],
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[700],
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[600],
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.primary[500],
+                },
+              }}
             >
               <MenuItem value="all">All Departments</MenuItem>
               <MenuItem value="none">No Department</MenuItem>
@@ -868,27 +919,62 @@ const UserManagementPage: React.FC = () => {
             </Select>
           </FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Status</InputLabel>
+            <InputLabel sx={{ color: colors.neutral[400] }}>Status</InputLabel>
             <Select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               label="Status"
+              disabled={tabValue === 0}
+              sx={{
+                color: colors.neutral[100],
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[700],
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[600],
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.primary[500],
+                },
+              }}
             >
               <MenuItem value="all">All Statuses</MenuItem>
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="inactive">Inactive</MenuItem>
               <MenuItem value="pending">Pending</MenuItem>
             </Select>
+            {tabValue === 0 && (
+              <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mt: 0.5 }}>
+                Status filter is disabled on Pending Approval tab
+              </Typography>
+            )}
           </FormControl>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseFilterDialog} variant="outlined">
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${colors.neutral[800]}` }}>
+          <Button 
+            onClick={handleCloseFilterDialog} 
+            variant="outlined"
+            sx={{ color: colors.neutral[300], borderColor: colors.neutral[700] }}
+          >
             Cancel
           </Button>
-          <Button onClick={handleClearFilters} variant="text" color="inherit">
+          <Button 
+            onClick={handleClearFilters} 
+            variant="text" 
+            sx={{ color: colors.neutral[400] }}
+          >
             Clear All
           </Button>
-          <Button onClick={handleApplyFilters} variant="contained">
+          <Button 
+            onClick={handleApplyFilters} 
+            variant="contained"
+            sx={{
+              backgroundColor: colors.primary[500],
+              '&:hover': {
+                backgroundColor: colors.primary[600],
+              },
+            }}
+          >
             Apply Filters
           </Button>
         </DialogActions>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -35,6 +36,7 @@ interface Report {
 }
 
 const ReportsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { token } = useSelector((state: RootState) => state.auth);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
@@ -139,14 +141,8 @@ const ReportsPage: React.FC = () => {
       subtitle="View and manage production and maintenance reports"
       actions={
         <Box sx={{ display: 'flex', gap: 1.5 }}>
-          <Button variant="outlined" startIcon={<FilterList />}>
-            Filters
-          </Button>
           <Button variant="outlined" startIcon={<Refresh />} onClick={fetchReports}>
             Refresh
-          </Button>
-          <Button variant="contained" startIcon={<Add />}>
-            Create Report
           </Button>
         </Box>
       }
@@ -170,8 +166,8 @@ const ReportsPage: React.FC = () => {
             title="No reports yet"
             description="Create your first report to track production and maintenance activities."
             action={{
-              label: 'Create Report',
-              onClick: () => console.log('Create report'),
+              label: 'View Tasks',
+              onClick: () => navigate('/admin/tasks'),
             }}
           />
         </Box>

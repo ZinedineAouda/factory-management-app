@@ -43,23 +43,6 @@ import { RootState } from '../../store';
 import axios from 'axios';
 import { ApiEndpoints } from '../../api/endpoints-override';
 
-// Sample data for charts
-const activityData = [
-  { name: 'Mon', tasks: 12, completed: 8 },
-  { name: 'Tue', tasks: 19, completed: 15 },
-  { name: 'Wed', tasks: 15, completed: 12 },
-  { name: 'Thu', tasks: 22, completed: 18 },
-  { name: 'Fri', tasks: 18, completed: 16 },
-  { name: 'Sat', tasks: 8, completed: 7 },
-  { name: 'Sun', tasks: 5, completed: 4 },
-];
-
-const departmentData = [
-  { name: 'Production', value: 45, color: colors.primary[500] },
-  { name: 'Maintenance', value: 30, color: colors.success[500] },
-  { name: 'Quality', value: 15, color: colors.warning[500] },
-  { name: 'Other', value: 10, color: colors.info[500] },
-];
 
 interface Activity {
   id: string;
@@ -92,16 +75,21 @@ const AdminDashboardPage: React.FC = () => {
   });
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [clearingActivity, setClearingActivity] = useState(false);
+  const [activityData, setActivityData] = useState<Array<{ name: string; tasks: number; completed: number }>>([]);
+  const [departmentData, setDepartmentData] = useState<Array<{ name: string; value: number; color: string }>>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const [usersRes, deptsRes, activityRes] = await Promise.all([
+        const [usersRes, deptsRes, tasksRes, activityRes] = await Promise.all([
           axios.get(ApiEndpoints.USERS.LIST, {
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => ({ data: [] })),
           axios.get(ApiEndpoints.DEPARTMENTS.LIST, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => ({ data: [] })),
+          axios.get(ApiEndpoints.TASKS.LIST, {
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => ({ data: [] })),
           axios.get(ApiEndpoints.ACTIVITY_LOG.LIST, {
@@ -109,13 +97,86 @@ const AdminDashboardPage: React.FC = () => {
           }).catch(() => ({ data: [] })),
         ]);
         
+        const tasks = tasksRes.data || [];
+        const completedTasks = tasks.filter((task: any) => task.status === 'completed' || task.status === 'done').length;
+        
         setStats({
           totalUsers: usersRes.data?.length || 0,
           totalDepartments: deptsRes.data?.length || 0,
-          totalTasks: 0,
-          completedTasks: 0,
+          totalTasks: tasks.length,
+          completedTasks,
         });
         setRecentActivity(activityRes.data || []);
+
+        // Generate weekly activity data from tasks (last 7 days)
+        const now = new Date();
+        const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const weeklyData = [];
+        
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now);
+          date.setDate(now.getDate() - i);
+          date.setHours(0, 0, 0, 0);
+          const nextDay = new Date(date);
+          nextDay.setDate(date.getDate() + 1);
+          
+          const dayOfWeek = date.getDay();
+          const dayName = weekDays[dayOfWeek];
+
+          const dayTasks = tasks.filter((task: any) => {
+            if (!task.createdAt && !task.created_at) return false;
+            const taskDate = new Date(task.createdAt || task.created_at);
+            taskDate.setHours(0, 0, 0, 0);
+            return taskDate.getTime() === date.getTime();
+          });
+
+          const dayCompleted = tasks.filter((task: any) => {
+            const completedDate = task.completedAt || task.completed_at;
+            if (!completedDate) return false;
+            const compDate = new Date(completedDate);
+            compDate.setHours(0, 0, 0, 0);
+            return compDate.getTime() === date.getTime();
+          });
+
+          weeklyData.push({
+            name: dayName,
+            tasks: dayTasks.length,
+            completed: dayCompleted.length,
+          });
+        }
+
+        setActivityData(weeklyData);
+
+        // Generate department distribution from tasks
+        const deptMap = new Map<string, number>();
+        tasks.forEach((task: any) => {
+          const deptName = task.departmentName || task.department_name || 'Unknown';
+          deptMap.set(deptName, (deptMap.get(deptName) || 0) + 1);
+        });
+
+        // If no tasks, show empty state
+        if (deptMap.size === 0) {
+          setDepartmentData([
+            { name: 'No Tasks', value: 100, color: colors.neutral[600] },
+          ]);
+        } else {
+          const total = tasks.length;
+          const deptColors = [
+            colors.primary[500],
+            colors.success[500],
+            colors.warning[500],
+            colors.info[500],
+            colors.error[500],
+          ];
+          
+          const deptArray = Array.from(deptMap.entries()).map(([name, count], index) => ({
+            name,
+            value: Math.round((count / total) * 100),
+            color: deptColors[index % deptColors.length],
+          }));
+
+          setDepartmentData(deptArray);
+        }
       } catch (error) {
         console.error('Error fetching stats:', error);
       } finally {
@@ -193,15 +254,6 @@ const AdminDashboardPage: React.FC = () => {
     <PageContainer
       title="Dashboard"
       subtitle="Welcome back! Here's an overview of your factory operations."
-      actions={
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/admin/tasks/create')}
-        >
-          Create Task
-        </Button>
-      }
     >
       {/* Stats Grid */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -236,9 +288,8 @@ const AdminDashboardPage: React.FC = () => {
           ) : (
             <StatCard
               title="Active Tasks"
-              value={stats.totalTasks || 24}
+              value={stats.totalTasks}
               icon={<Assignment />}
-              change={{ value: 8, label: 'vs last week', positive: true }}
               color="warning"
             />
           )}
@@ -249,9 +300,8 @@ const AdminDashboardPage: React.FC = () => {
           ) : (
             <StatCard
               title="Completion Rate"
-              value="87%"
+              value={stats.totalTasks > 0 ? `${Math.round((stats.completedTasks / stats.totalTasks) * 100)}%` : '0%'}
               icon={<CheckCircle />}
-              change={{ value: 3, label: 'improvement', positive: true }}
               color="info"
             />
           )}
@@ -286,7 +336,8 @@ const AdminDashboardPage: React.FC = () => {
               </Tooltip>
             </Box>
             <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={activityData}>
+              {activityData.length > 0 ? (
+                <AreaChart data={activityData}>
                 <defs>
                   <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={colors.primary[500]} stopOpacity={0.3} />
@@ -336,6 +387,13 @@ const AdminDashboardPage: React.FC = () => {
                   name="Completed"
                 />
               </AreaChart>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <Typography sx={{ color: colors.neutral[500], fontSize: '0.875rem' }}>
+                    No activity data available
+                  </Typography>
+                </Box>
+              )}
             </ResponsiveContainer>
           </Box>
         </Grid>
@@ -355,21 +413,29 @@ const AdminDashboardPage: React.FC = () => {
               Task Distribution
             </Typography>
             <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={departmentData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {departmentData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-              </PieChart>
+              {departmentData.length > 0 ? (
+                <PieChart>
+                  <Pie
+                    data={departmentData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {departmentData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <Typography sx={{ color: colors.neutral[500], fontSize: '0.875rem' }}>
+                    No department data available
+                  </Typography>
+                </Box>
+              )}
             </ResponsiveContainer>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', mt: 2 }}>
               {departmentData.map((item) => (

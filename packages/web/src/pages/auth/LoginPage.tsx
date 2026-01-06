@@ -225,8 +225,63 @@ const LoginPage: React.FC = () => {
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {typeof error === 'string' ? error : ((error as any)?.message || (error as any)?.error || 'An error occurred')}
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 3,
+                '& .MuiAlert-message': {
+                  width: '100%',
+                },
+              }}
+            >
+              <Box>
+                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {(() => {
+                    if (typeof error === 'string') {
+                      // Check for specific error messages
+                      if (error.includes('Account not found') || error.includes('does not exist')) {
+                        return 'Account Not Found';
+                      }
+                      if (error.includes('Incorrect password') || error.includes('password') && error.includes('incorrect')) {
+                        return 'Incorrect Password';
+                      }
+                      if (error.includes('pending approval')) {
+                        return 'Account Pending Approval';
+                      }
+                      return 'Login Failed';
+                    }
+                    const errorObj = error as any;
+                    if (errorObj?.errorCode === 'ACCOUNT_NOT_FOUND' || errorObj?.message?.includes('does not exist')) {
+                      return 'Account Not Found';
+                    }
+                    if (errorObj?.errorCode === 'INVALID_PASSWORD' || errorObj?.message?.includes('password')) {
+                      return 'Incorrect Password';
+                    }
+                    if (errorObj?.errorCode === 'ACCOUNT_PENDING' || errorObj?.message?.includes('pending')) {
+                      return 'Account Pending Approval';
+                    }
+                    return errorObj?.message || errorObj?.error || 'Login Failed';
+                  })()}
+                </Typography>
+                <Typography sx={{ fontSize: '0.875rem', color: 'inherit', opacity: 0.9 }}>
+                  {(() => {
+                    if (typeof error === 'string') {
+                      if (error.includes('Account not found') || error.includes('does not exist')) {
+                        return 'The username you entered does not exist. Please check your username and try again.';
+                      }
+                      if (error.includes('Incorrect password') || error.includes('password') && error.includes('incorrect')) {
+                        return 'The password you entered is incorrect. Please check your password and try again.';
+                      }
+                      if (error.includes('pending approval')) {
+                        return 'Your account is waiting for administrator approval. Please contact your administrator.';
+                      }
+                      return error;
+                    }
+                    const errorObj = error as any;
+                    return errorObj?.message || errorObj?.error || 'An unexpected error occurred. Please try again.';
+                  })()}
+                </Typography>
+              </Box>
             </Alert>
           )}
 
