@@ -74,6 +74,7 @@ const UserManagementPage: React.FC = () => {
   const [statistics, setStatistics] = useState<Record<string, WorkerStatistics>>({});
   const [loadingStats, setLoadingStats] = useState<Record<string, boolean>>({});
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -129,14 +130,39 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
-  const handleApproveUser = async (user: User) => {
+  const handleOpenApproveDialog = (user: User) => {
+    setSelectedUser(user);
+    setSelectedRole((user.role as UserRole) || UserRole.WORKER);
+    setSelectedDepartmentId('');
+    setSelectedGroupId('');
+    setApproveDialogOpen(true);
+    setError(null);
+  };
+
+  const handleCloseApproveDialog = () => {
+    setApproveDialogOpen(false);
+    setSelectedUser(null);
+    setSelectedDepartmentId('');
+    setSelectedGroupId('');
+    setSelectedRole(UserRole.WORKER);
+    setError(null);
+  };
+
+  const handleApproveUser = async () => {
+    if (!selectedUser) return;
+
     try {
       setError(null);
       await axios.post(
-        ApiEndpoints.USERS.APPROVE(user.id),
-        {},
+        ApiEndpoints.USERS.APPROVE(selectedUser.id),
+        {
+          role: selectedRole,
+          departmentId: selectedDepartmentId || null,
+          groupId: selectedGroupId || null,
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      handleCloseApproveDialog();
       // Refresh both lists
       fetchUsers();
       fetchPendingUsers();
@@ -501,7 +527,7 @@ const UserManagementPage: React.FC = () => {
                 size="small"
                 variant="contained"
                 color="success"
-                onClick={() => handleApproveUser(row)}
+                onClick={() => handleOpenApproveDialog(row)}
                 sx={{ textTransform: 'none', fontSize: '0.75rem' }}
               >
                 Approve
@@ -742,6 +768,144 @@ const UserManagementPage: React.FC = () => {
           </Box>
         );
       })}
+
+      {/* Approve Dialog */}
+      <Dialog 
+        open={approveDialogOpen} 
+        onClose={handleCloseApproveDialog} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: colors.neutral[900],
+            border: `1px solid ${colors.neutral[800]}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: colors.neutral[100], borderBottom: `1px solid ${colors.neutral[800]}` }}>
+          Approve User & Assign Role/Department
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
+          <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mb: 3 }}>
+            Please assign a role and department for: <strong style={{ color: colors.neutral[100] }}>{selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}</strong>
+          </Typography>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            The user account will be approved and activated. Make sure to assign the correct role and department.
+          </Alert>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel sx={{ color: colors.neutral[400] }}>Role *</InputLabel>
+            <Select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+              label="Role *"
+              required
+              sx={{
+                color: colors.neutral[100],
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[700],
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[600],
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.primary[500],
+                },
+              }}
+            >
+              <MenuItem value={UserRole.WORKER}>Worker</MenuItem>
+              <MenuItem value={UserRole.OPERATOR}>Operator</MenuItem>
+              <MenuItem value={UserRole.LEADER}>Leader</MenuItem>
+              <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel sx={{ color: colors.neutral[400] }}>Department</InputLabel>
+            <Select
+              value={selectedDepartmentId}
+              onChange={(e) => setSelectedDepartmentId(e.target.value)}
+              label="Department"
+              sx={{
+                color: colors.neutral[100],
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[700],
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[600],
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.primary[500],
+                },
+              }}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {departments.map((dept) => (
+                <MenuItem key={dept.id} value={dept.id}>
+                  {dept.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth>
+            <InputLabel sx={{ color: colors.neutral[400] }}>Group</InputLabel>
+            <Select
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              label="Group"
+              sx={{
+                color: colors.neutral[100],
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[700],
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.neutral[600],
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: colors.primary[500],
+                },
+              }}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {groups.map((group) => (
+                <MenuItem key={group.id} value={group.id}>
+                  {group.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${colors.neutral[800]}` }}>
+          <Button 
+            onClick={handleCloseApproveDialog} 
+            variant="outlined"
+            sx={{ color: colors.neutral[300], borderColor: colors.neutral[700] }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleApproveUser} 
+            variant="contained"
+            color="success"
+            disabled={!selectedRole}
+            sx={{
+              backgroundColor: colors.success[500],
+              '&:hover': {
+                backgroundColor: colors.success[600],
+              },
+            }}
+          >
+            Approve & Assign
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Assign Dialog */}
       <Dialog open={assignDialogOpen} onClose={handleCloseAssignDialog} maxWidth="sm" fullWidth>

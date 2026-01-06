@@ -400,6 +400,7 @@ router.post('/users/approve/:username', async (req, res) => {
 router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
+    const { role, departmentId, groupId } = req.body;
 
     const user = await dbGet('SELECT id, username, status FROM users WHERE id = ?', [id]);
     if (!user) {
@@ -410,9 +411,35 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
       return res.status(400).json({ error: 'User is already approved' });
     }
 
+    // Validate role if provided
+    if (role && !['worker', 'operator', 'leader', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    // Update user: approve and optionally assign role, department, and group
+    const updates: string[] = ['status = ?', 'updated_at = CURRENT_TIMESTAMP'];
+    const values: any[] = ['active'];
+
+    if (role) {
+      updates.push('role = ?');
+      values.push(role);
+    }
+
+    if (departmentId !== undefined) {
+      updates.push('department_id = ?');
+      values.push(departmentId || null);
+    }
+
+    if (groupId !== undefined) {
+      updates.push('group_id = ?');
+      values.push(groupId || null);
+    }
+
+    values.push(id);
+
     await dbRun(
-      'UPDATE users SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      ['active', id]
+      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
+      values
     );
 
     // Notify the approved user
@@ -440,6 +467,7 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
         id: user.id,
         username: user.username,
         status: 'active',
+        role: role || user.role,
       },
     });
   } catch (error: any) {
@@ -448,7 +476,7 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
   }
 });
 
-// List all users (Admin only)
+// List all users (Admin only) - Only returns approved users (status='active')
 router.get('/users', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
     const users = await dbAll(
@@ -457,6 +485,7 @@ router.get('/users', authenticate, requireRole(['admin']), async (req: AuthReque
        FROM users u
        LEFT JOIN departments d ON u.department_id = d.id
        LEFT JOIN groups g ON u.group_id = g.id
+       WHERE u.status = 'active'
        ORDER BY u.created_at DESC`
     );
 
