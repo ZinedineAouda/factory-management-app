@@ -402,54 +402,80 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
     const { id } = req.params;
     const { role, departmentId, groupId } = req.body;
 
-    const user = await dbGet('SELECT id, username, status FROM users WHERE id = ?', [id]);
+    console.log(`[Approve User] Starting approval for user ID: ${id}`, { role, departmentId, groupId });
+
+    // Get current user data - SAFE: only SELECT, no deletion
+    const user = await dbGet('SELECT id, username, status, email, password_hash, role, department_id, group_id, created_at FROM users WHERE id = ?', [id]);
     if (!user) {
+      console.error(`[Approve User] User not found: ${id}`);
       return res.status(404).json({ error: 'User not found' });
     }
 
     if (user.status === 'active') {
+      console.warn(`[Approve User] User already approved: ${id}`);
       return res.status(400).json({ error: 'User is already approved' });
     }
 
     // Validate role - it's required for approval
     if (!role || typeof role !== 'string') {
+      console.error(`[Approve User] Missing or invalid role for user ${id}`, { received: role });
       return res.status(400).json({ error: 'Role is required for approval' });
     }
 
     const validRoles = ['worker', 'operator', 'leader', 'admin'];
     const normalizedRole = role.toLowerCase().trim();
     if (!validRoles.includes(normalizedRole)) {
+      console.error(`[Approve User] Invalid role for user ${id}`, { received: role, normalized: normalizedRole });
       return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
     }
 
-    // Update user: approve and assign role, department, and group
-    const updates: string[] = ['status = ?', 'role = ?', 'updated_at = CURRENT_TIMESTAMP'];
-    const values: any[] = ['active', normalizedRole];
-
-    // Handle departmentId - null if empty string or undefined
-    if (departmentId !== undefined && departmentId !== null && departmentId !== '') {
-      updates.push('department_id = ?');
-      values.push(departmentId);
-    } else {
-      updates.push('department_id = ?');
-      values.push(null);
+    // Validate department exists if provided
+    if (departmentId && departmentId.trim()) {
+      const dept = await dbGet('SELECT id FROM departments WHERE id = ?', [departmentId]);
+      if (!dept) {
+        console.error(`[Approve User] Invalid department ID: ${departmentId}`);
+        return res.status(400).json({ error: 'Invalid department ID' });
+      }
     }
 
-    // Handle groupId - null if empty string or undefined
-    if (groupId !== undefined && groupId !== null && groupId !== '') {
-      updates.push('group_id = ?');
-      values.push(groupId);
-    } else {
-      updates.push('group_id = ?');
-      values.push(null);
+    // Validate group exists if provided
+    if (groupId && groupId.trim()) {
+      const group = await dbGet('SELECT id FROM groups WHERE id = ?', [groupId]);
+      if (!group) {
+        console.error(`[Approve User] Invalid group ID: ${groupId}`);
+        return res.status(400).json({ error: 'Invalid group ID' });
+      }
     }
 
-    values.push(id);
+    // SAFE UPDATE: Only updates status, role, department_id, group_id, and updated_at
+    // Does NOT delete any data - all existing user data (email, password_hash, created_at, etc.) is preserved
+    const finalDeptId = (departmentId && departmentId.trim()) ? departmentId.trim() : null;
+    const finalGroupId = (groupId && groupId.trim()) ? groupId.trim() : null;
 
+    console.log(`[Approve User] Updating user ${id}`, {
+      oldStatus: user.status,
+      newStatus: 'active',
+      oldRole: user.role,
+      newRole: normalizedRole,
+      oldDept: user.department_id,
+      newDept: finalDeptId,
+      oldGroup: user.group_id,
+      newGroup: finalGroupId,
+    });
+
+    // UPDATE query - SAFE: only modifies specific columns, preserves all other data
     await dbRun(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-      values
+      `UPDATE users 
+       SET status = ?, 
+           role = ?, 
+           department_id = ?, 
+           group_id = ?, 
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      ['active', normalizedRole, finalDeptId, finalGroupId, id]
     );
+
+    console.log(`[Approve User] Successfully updated user ${id}`);
 
     // Notify the approved user
     try {
@@ -465,23 +491,50 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
           id
         ]
       );
+      console.log(`[Approve User] Notification sent to user ${id}`);
     } catch (notifError: any) {
-      console.error('Error creating approval notification:', notifError);
+      console.error('[Approve User] Error creating approval notification:', notifError);
       // Don't fail approval if notification fails
     }
 
+    // Return updated user data
+    const updatedUser = await dbGet(
+      `SELECT u.id, u.username, u.email, u.role, u.status, u.department_id, u.group_id,
+              d.name as department_name, g.name as group_name
+       FROM users u
+       LEFT JOIN departments d ON u.department_id = d.id
+       LEFT JOIN groups g ON u.group_id = g.id
+       WHERE u.id = ?`,
+      [id]
+    );
+
+    console.log(`[Approve User] Approval completed successfully for user ${id}`);
     res.json({
       message: 'User approved successfully',
       user: {
-        id: user.id,
-        username: user.username,
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
         status: 'active',
-        role: role || user.role,
+        role: normalizedRole,
+        departmentId: updatedUser.department_id,
+        departmentName: updatedUser.department_name,
+        groupId: updatedUser.group_id,
+        groupName: updatedUser.group_name,
       },
     });
   } catch (error: any) {
-    console.error('Approve user error:', error);
-    res.status(500).json({ error: 'Failed to approve user' });
+    console.error('[Approve User] Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      userId: req.params.id,
+      body: req.body,
+    });
+    res.status(500).json({ 
+      error: 'Failed to approve user',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

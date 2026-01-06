@@ -185,8 +185,20 @@ const UserManagementPage: React.FC = () => {
       await Promise.all([fetchUsers(), fetchPendingUsers()]);
     } catch (error: any) {
       console.error('Approve user error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+      });
+      
       const errorMessage =
-        error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to approve user';
+        error.response?.data?.error || 
+        error.response?.data?.message || 
+        error.response?.data?.details ||
+        error.message || 
+        'Failed to approve user. Please check the console for details.';
       setError(errorMessage);
     }
   };
