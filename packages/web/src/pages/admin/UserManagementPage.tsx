@@ -248,6 +248,7 @@ const UserManagementPage: React.FC = () => {
   const filteredUsers = displayUsers.filter(
     (user) =>
       (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      ((user as any).username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
       (user.departmentName?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
@@ -280,11 +281,11 @@ const UserManagementPage: React.FC = () => {
               fontSize: '0.75rem',
             }}
           >
-            {row.email.charAt(0).toUpperCase()}
+            {(row.email || (row as any).username || 'U').charAt(0).toUpperCase()}
           </Avatar>
           <Box>
             <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.neutral[100] }}>
-              {row.email}
+              {row.email || (row as any).username || 'No email'}
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
               Joined {new Date(row.createdAt).toLocaleDateString()}
@@ -465,7 +466,7 @@ const UserManagementPage: React.FC = () => {
             }}
           >
             <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100], mb: 2 }}>
-              Statistics for {user.email}
+              Statistics for {user.email || (user as any).username || 'Unknown User'}
             </Typography>
             {isLoadingStats ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
@@ -541,7 +542,7 @@ const UserManagementPage: React.FC = () => {
             </Alert>
           )}
           <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mb: 3 }}>
-            Assign department and group for: <strong style={{ color: colors.neutral[100] }}>{selectedUser?.email}</strong>
+            Assign department and group for: <strong style={{ color: colors.neutral[100] }}>{selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}</strong>
           </Typography>
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel>Department</InputLabel>
@@ -601,7 +602,7 @@ const UserManagementPage: React.FC = () => {
             </Alert>
           )}
           <Typography sx={{ fontSize: '0.9375rem', color: colors.neutral[300], mb: 2 }}>
-            Are you sure you want to delete <strong style={{ color: colors.neutral[100] }}>{userToDelete?.email}</strong>?
+            Are you sure you want to delete <strong style={{ color: colors.neutral[100] }}>{userToDelete?.email || (userToDelete as any)?.username || 'Unknown User'}</strong>?
           </Typography>
           <Alert severity="warning" sx={{ mb: 2 }}>
             This action cannot be undone. All data associated with this user will be permanently deleted.
