@@ -121,7 +121,7 @@ const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed, onMenuClick }) => {
     }
   };
 
-  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
+  const handleNotificationIconClick = (event: React.MouseEvent<HTMLElement>) => {
     setNotificationAnchorEl(event.currentTarget);
     fetchNotifications();
   };
@@ -144,6 +144,48 @@ const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed, onMenuClick }) => {
       fetchUnreadCount();
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  const getNotificationRoute = (notification: any): string | null => {
+    const { type, related_id } = notification;
+    
+    switch (type) {
+      case 'report_created':
+        return related_id ? `/admin/reports/${related_id}` : '/admin/reports';
+      case 'delivery_drop':
+        return '/admin/analytics';
+      case 'user_registered':
+        return '/admin/users';
+      case 'department_changes':
+        return '/admin/departments';
+      case 'profile_update':
+      case 'password_change':
+      case 'username_change':
+        return '/settings';
+      case 'task_assigned':
+      case 'task_completed':
+        // Tasks might not have a dedicated page, redirect to dashboard
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  const handleNotificationClick = async (notification: any) => {
+    // Mark as read
+    if (notification.is_read === 0) {
+      await handleMarkAsRead(notification.id);
+    }
+    
+    // Get route and navigate
+    const route = getNotificationRoute(notification);
+    if (route) {
+      handleNotificationClose();
+      navigate(route);
+    } else {
+      // If no specific route, just close the popover
+      handleNotificationClose();
     }
   };
 
@@ -304,7 +346,7 @@ const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed, onMenuClick }) => {
         <Tooltip title="Notifications">
           <IconButton
             size="small"
-            onClick={handleNotificationClick}
+            onClick={handleNotificationIconClick}
             sx={{
               color: colors.neutral[400],
               '&:hover': { backgroundColor: alpha(colors.neutral[500], 0.08) },
@@ -374,16 +416,20 @@ const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed, onMenuClick }) => {
             </Box>
           ) : (
             <List sx={{ p: 0, maxHeight: 400, overflow: 'auto' }}>
-              {notifications.slice(0, 10).map((notification) => (
+              {notifications.slice(0, 10).map((notification) => {
+                const route = getNotificationRoute(notification);
+                const isClickable = route !== null;
+                
+                return (
                 <ListItem
                   key={notification.id}
-                  onClick={() => handleMarkAsRead(notification.id)}
+                  onClick={() => handleNotificationClick(notification)}
                   sx={{
                     backgroundColor: notification.is_read === 0 ? alpha(colors.primary[500], 0.05) : 'transparent',
                     borderBottom: `1px solid ${colors.neutral[800]}`,
-                    cursor: 'pointer',
+                    cursor: isClickable ? 'pointer' : 'default',
                     '&:hover': {
-                      backgroundColor: alpha(colors.neutral[500], 0.08),
+                      backgroundColor: isClickable ? alpha(colors.neutral[500], 0.08) : 'transparent',
                     },
                   }}
                 >
@@ -408,7 +454,8 @@ const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed, onMenuClick }) => {
                     }
                   />
                 </ListItem>
-              ))}
+              );
+              })}
             </List>
           )}
         </Popover>
