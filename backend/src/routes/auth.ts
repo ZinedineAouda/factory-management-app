@@ -40,62 +40,79 @@ const cleanupUserData = async (userId: string, adminId: string) => {
   try {
     console.log(`[CLEANUP] Starting cleanup for user ${userId}`);
     
-    // 1. Delete task updates by this user
-    await dbRun('DELETE FROM task_updates WHERE user_id = ?', [userId]);
-    console.log(`[CLEANUP] Deleted task_updates for user ${userId}`);
+    // Check which tables have references to this user
+    const tablesToCheck = [
+      { name: 'task_updates', column: 'user_id', action: 'delete' },
+      { name: 'tasks', column: 'created_by', action: 'update' },
+      { name: 'tasks', column: 'assigned_to', action: 'update' },
+      { name: 'registration_codes', column: 'used_by', action: 'null' },
+      { name: 'registration_codes', column: 'created_by', action: 'null' },
+      { name: 'reports', column: 'operator_id', action: 'update' },
+      { name: 'reports', column: 'solved_by', action: 'update' },
+      { name: 'report_comments', column: 'user_id', action: 'delete' },
+      { name: 'product_deliveries', column: 'worker_id', action: 'delete' },
+      { name: 'notifications', column: 'user_id', action: 'delete' },
+      { name: 'activity_log', column: 'user_id', action: 'null' },
+      { name: 'user_notification_preferences', column: 'user_id', action: 'delete' },
+    ];
     
-    // 2. Reassign tasks created by this user to admin, or delete if no admin exists
     const adminExists = await dbGet('SELECT id FROM users WHERE id = ?', [adminId]);
-    if (adminExists) {
-      await dbRun('UPDATE tasks SET created_by = ? WHERE created_by = ?', [adminId, userId]);
-      await dbRun('UPDATE tasks SET assigned_to = ? WHERE assigned_to = ?', [adminId, userId]);
-      console.log(`[CLEANUP] Reassigned tasks to admin ${adminId}`);
+    
+    for (const table of tablesToCheck) {
+      try {
+        // Check if table exists and has records
+        const checkResult = await dbGet(
+          `SELECT COUNT(*) as count FROM ${table.name} WHERE ${table.column} = ?`,
+          [userId]
+        );
+        const count = (checkResult as any)?.count || 0;
+        
+        if (count > 0) {
+          console.log(`[CLEANUP] Found ${count} records in ${table.name}.${table.column} for user ${userId}`);
+          
+          if (table.action === 'delete') {
+            await dbRun(`DELETE FROM ${table.name} WHERE ${table.column} = ?`, [userId]);
+            console.log(`[CLEANUP] Deleted ${count} records from ${table.name}`);
+          } else if (table.action === 'null') {
+            await dbRun(`UPDATE ${table.name} SET ${table.column} = NULL WHERE ${table.column} = ?`, [userId]);
+            console.log(`[CLEANUP] Set ${count} records to NULL in ${table.name}`);
+          } else if (table.action === 'update' && adminExists) {
+            if (table.name === 'reports' && table.column === 'operator_id') {
+              // For reports.operator_id, we need to reassign, but if no admin, we can't delete reports
+              await dbRun(`UPDATE ${table.name} SET ${table.column} = ? WHERE ${table.column} = ?`, [adminId, userId]);
+            } else if (table.name === 'reports' && table.column === 'solved_by') {
+              // For reports.solved_by, we can set to NULL if needed
+              await dbRun(`UPDATE ${table.name} SET ${table.column} = ? WHERE ${table.column} = ?`, [adminId, userId]);
     } else {
-      await dbRun('DELETE FROM tasks WHERE created_by = ?', [userId]);
-      await dbRun('DELETE FROM tasks WHERE assigned_to = ?', [userId]);
-      console.log(`[CLEANUP] Deleted tasks for user ${userId} (no admin found)`);
+              await dbRun(`UPDATE ${table.name} SET ${table.column} = ? WHERE ${table.column} = ?`, [adminId, userId]);
+            }
+            console.log(`[CLEANUP] Updated ${count} records in ${table.name} to admin ${adminId}`);
+          } else if (table.action === 'update' && !adminExists) {
+            if (table.name === 'reports') {
+              // For reports, set to NULL instead of deleting
+              await dbRun(`UPDATE ${table.name} SET ${table.column} = NULL WHERE ${table.column} = ?`, [userId]);
+              console.log(`[CLEANUP] Set ${count} records to NULL in ${table.name} (no admin)`);
+            } else {
+              await dbRun(`DELETE FROM ${table.name} WHERE ${table.column} = ?`, [userId]);
+              console.log(`[CLEANUP] Deleted ${count} records from ${table.name} (no admin)`);
+            }
+          }
+        }
+      } catch (tableError: any) {
+        // If table doesn't exist, skip it
+        if (tableError.message?.includes('no such table')) {
+          console.log(`[CLEANUP] Table ${table.name} does not exist, skipping`);
+          continue;
+        }
+        console.error(`[CLEANUP] Error processing ${table.name}.${table.column}:`, tableError);
+        throw tableError;
+      }
     }
-    
-    // 3. Update registration codes - set references to null
-    await dbRun('UPDATE registration_codes SET used_by = NULL WHERE used_by = ?', [userId]);
-    await dbRun('UPDATE registration_codes SET created_by = NULL WHERE created_by = ?', [userId]);
-    console.log(`[CLEANUP] Updated registration_codes for user ${userId}`);
-    
-    // 4. Handle reports - reassign operator_id and solved_by to admin
-    if (adminExists) {
-      await dbRun('UPDATE reports SET operator_id = ? WHERE operator_id = ?', [adminId, userId]);
-      await dbRun('UPDATE reports SET solved_by = ? WHERE solved_by = ?', [adminId, userId]);
-      console.log(`[CLEANUP] Reassigned reports to admin ${adminId}`);
-    } else {
-      // If no admin, set to null or delete (depends on schema - let's set to null to preserve reports)
-      await dbRun('UPDATE reports SET operator_id = NULL WHERE operator_id = ?', [userId]);
-      await dbRun('UPDATE reports SET solved_by = NULL WHERE solved_by = ?', [userId]);
-      console.log(`[CLEANUP] Set report references to NULL for user ${userId}`);
-    }
-    
-    // 5. Delete report comments by this user
-    await dbRun('DELETE FROM report_comments WHERE user_id = ?', [userId]);
-    console.log(`[CLEANUP] Deleted report_comments for user ${userId}`);
-    
-    // 6. Product deliveries - worker_id has ON DELETE CASCADE, but clean up explicitly to be safe
-    await dbRun('DELETE FROM product_deliveries WHERE worker_id = ?', [userId]);
-    console.log(`[CLEANUP] Deleted product_deliveries for user ${userId}`);
-    
-    // 7. Notifications - user_id has ON DELETE CASCADE, but clean up explicitly to be safe
-    await dbRun('DELETE FROM notifications WHERE user_id = ?', [userId]);
-    console.log(`[CLEANUP] Deleted notifications for user ${userId}`);
-    
-    // 8. Activity log - user_id has ON DELETE SET NULL, but let's set explicitly
-    await dbRun('UPDATE activity_log SET user_id = NULL WHERE user_id = ?', [userId]);
-    console.log(`[CLEANUP] Updated activity_log for user ${userId}`);
-    
-    // 9. User notification preferences - user_id has ON DELETE CASCADE, but clean up explicitly
-    await dbRun('DELETE FROM user_notification_preferences WHERE user_id = ?', [userId]);
-    console.log(`[CLEANUP] Deleted user_notification_preferences for user ${userId}`);
     
     console.log(`[CLEANUP] Completed cleanup for user ${userId}`);
   } catch (error: any) {
     console.error(`[CLEANUP] Error cleaning up user ${userId}:`, error);
+    console.error(`[CLEANUP] Error details:`, error.message, error.stack);
     throw error;
   }
 };
@@ -1117,37 +1134,69 @@ router.delete('/users/:id', authenticate, requireRole(['admin']), async (req: Au
 
     const adminId = adminUser?.id || currentUserId;
 
-    // Use transaction for atomic deletion
-    // Temporarily disable foreign keys to ensure smooth deletion
+    // Disable foreign keys BEFORE any operations
+    // SQLite requires PRAGMA to be set per connection and before transactions
+    console.log(`[DELETE USER] Starting deletion process for user ${id}`);
+    
     try {
       // Get current foreign key setting
       const fkResult = await dbGet('PRAGMA foreign_keys');
       const fkEnabled = (fkResult as any)?.foreign_keys === 1;
+      console.log(`[DELETE USER] Foreign keys currently: ${fkEnabled ? 'ON' : 'OFF'}`);
       
-      // Disable foreign keys temporarily to allow deletion
-      if (fkEnabled) {
-        await dbRun('PRAGMA foreign_keys = OFF');
-      }
+      // Disable foreign keys to allow deletion of records with references
+      await dbRun('PRAGMA foreign_keys = OFF');
+      console.log(`[DELETE USER] Foreign keys disabled`);
       
-      await dbRun('BEGIN TRANSACTION');
-      
-      // Clean up all user-related data
+      // Clean up all user-related data (must be done before deletion)
       await cleanupUserData(id, adminId);
 
+      // Start transaction for atomic deletion
+      await dbRun('BEGIN TRANSACTION');
+      console.log(`[DELETE USER] Transaction started`);
+
       // Delete the user
-      await dbRun('DELETE FROM users WHERE id = ?', [id]);
+      const deleteResult = await dbRun('DELETE FROM users WHERE id = ?', [id]);
+      console.log(`[DELETE USER] User deletion query executed`);
+      
+      // Verify deletion
+      const verifyUser = await dbGet('SELECT id FROM users WHERE id = ?', [id]);
+      if (verifyUser) {
+        throw new Error('User still exists after deletion attempt');
+      }
+      console.log(`[DELETE USER] User deletion verified`);
       
       await dbRun('COMMIT');
+      console.log(`[DELETE USER] Transaction committed`);
       
       // Re-enable foreign keys
-      if (fkEnabled) {
-        await dbRun('PRAGMA foreign_keys = ON');
-      }
+      await dbRun('PRAGMA foreign_keys = ON');
+      console.log(`[DELETE USER] Foreign keys re-enabled`);
+      
+      console.log(`[DELETE USER] User ${id} deleted successfully`);
     } catch (deleteErr: any) {
-      // Rollback on error
-      await dbRun('ROLLBACK').catch(() => {}); // Ignore rollback errors
-      // Re-enable foreign keys even on error
-      await dbRun('PRAGMA foreign_keys = ON').catch(() => {});
+      console.error(`[DELETE USER] Error deleting user ${id}:`, deleteErr);
+      console.error(`[DELETE USER] Error message:`, deleteErr.message);
+      console.error(`[DELETE USER] Error code:`, (deleteErr as any)?.code);
+      console.error(`[DELETE USER] Error stack:`, deleteErr.stack);
+      
+      // Rollback transaction if it was started
+      try {
+        await dbRun('ROLLBACK');
+        console.log(`[DELETE USER] Transaction rolled back`);
+      } catch (rollbackErr: any) {
+        console.error(`[DELETE USER] Rollback error (might not be in transaction):`, rollbackErr.message);
+      }
+      
+      // Always re-enable foreign keys, even on error
+      try {
+        await dbRun('PRAGMA foreign_keys = ON');
+        console.log(`[DELETE USER] Foreign keys re-enabled after error`);
+      } catch (fkErr: any) {
+        console.error(`[DELETE USER] Error re-enabling foreign keys:`, fkErr.message);
+      }
+      
+      // Re-throw the error so it can be handled by the outer catch block
       throw deleteErr;
     }
 
