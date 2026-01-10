@@ -448,32 +448,42 @@ const UserManagementPage: React.FC = () => {
 
   const displayUsers = tabValue === 0 ? pendingUsers : tabValue === 1 ? workers : users;
   
+  // Only apply filters if they've been explicitly set (activeFilters has items) or search query exists
+  const hasActiveFilters = activeFilters.size > 0 || searchQuery.trim().length > 0;
+  
   const filteredUsers = displayUsers.filter((user) => {
-    // On pending tab, only show pending users
+    // On pending tab, only show pending users (this is not a filter, it's tab logic)
     if (tabValue === 0) {
       const userStatus = (user as any).status || (user.isActive ? 'active' : 'inactive');
       if (userStatus !== 'pending') return false;
     }
     
-    // Search filter
-    const matchesSearch =
-      (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-      ((user as any).username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-      (user.departmentName?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+    // If no filters are active, show all users (except pending tab logic above)
+    if (!hasActiveFilters) {
+      return true;
+    }
     
-    if (!matchesSearch) return false;
+    // Search filter - only apply if search query exists
+    if (searchQuery.trim().length > 0) {
+      const matchesSearch =
+        (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        ((user as any).username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (user.departmentName?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+      
+      if (!matchesSearch) return false;
+    }
     
-    // Role filter
-    if (filterRole !== 'all' && user.role !== filterRole) return false;
+    // Role filter - only apply if filter has been explicitly set
+    if (activeFilters.size > 0 && filterRole !== 'all' && user.role !== filterRole) return false;
     
-    // Department filter
-    if (filterDepartment !== 'all') {
+    // Department filter - only apply if filter has been explicitly set
+    if (activeFilters.size > 0 && filterDepartment !== 'all') {
       if (filterDepartment === 'none' && user.departmentId) return false;
       if (filterDepartment !== 'none' && user.departmentId !== filterDepartment) return false;
     }
     
-    // Status filter (disabled on pending tab since all are pending)
-    if (tabValue !== 0 && filterStatus !== 'all') {
+    // Status filter - only apply if filter has been explicitly set (disabled on pending tab)
+    if (activeFilters.size > 0 && tabValue !== 0 && filterStatus !== 'all') {
       const userStatus = (user as any).status || (user.isActive ? 'active' : 'inactive');
       if (filterStatus === 'active' && userStatus !== 'active') return false;
       if (filterStatus === 'inactive' && userStatus === 'active') return false;
@@ -491,12 +501,14 @@ const UserManagementPage: React.FC = () => {
     setFilterDialogOpen(false);
   };
 
-  // Reset filters when switching tabs (except pending tab)
+  // Reset filters when switching tabs
   useEffect(() => {
-    if (tabValue === 0) {
-      // On pending tab, only show pending status
-      setFilterStatus('pending');
-    }
+    // Clear all filters when switching tabs
+    setFilterRole('all');
+    setFilterDepartment('all');
+    setFilterStatus('all');
+    setActiveFilters(new Set());
+    setSearchQuery('');
   }, [tabValue]);
 
   const handleApplyFilters = () => {
@@ -515,6 +527,7 @@ const UserManagementPage: React.FC = () => {
     setFilterDepartment('all');
     setFilterStatus('all');
     setActiveFilters(new Set());
+    setSearchQuery(''); // Also clear search when clearing filters
     handleCloseFilterDialog();
   };
 
