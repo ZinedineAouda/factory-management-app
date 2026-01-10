@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import {
   Box,
@@ -101,7 +101,35 @@ const UserManagementPage: React.FC = () => {
     fetchGroups();
   }, []);
 
-  const fetchUsers = async () => {
+  // Keyboard shortcuts for approval dialog
+  useEffect(() => {
+    if (!approveDialogOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Enter key - approve user
+      if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        const target = event.target as HTMLElement;
+        // Don't trigger if typing in an input field or select is open
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.closest('.MuiPopover-root')) {
+          event.preventDefault();
+          if (!approving && selectedRole) {
+            handleApproveUser();
+          }
+        }
+      }
+      
+      // Escape key - close dialog
+      if (event.key === 'Escape' && !approving) {
+        event.preventDefault();
+        handleCloseApproveDialog();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [approveDialogOpen, approving, selectedRole, handleApproveUser, handleCloseApproveDialog]);
+
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(ApiEndpoints.USERS.LIST, {
@@ -115,9 +143,9 @@ const UserManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
-  const fetchPendingUsers = async () => {
+  const fetchPendingUsers = useCallback(async () => {
     try {
       setLoadingPending(true);
       const response = await axios.get(ApiEndpoints.USERS.PENDING, {
@@ -129,7 +157,7 @@ const UserManagementPage: React.FC = () => {
     } finally {
       setLoadingPending(false);
     }
-  };
+  }, [token]);
 
   const handleOpenApproveDialog = (user: User) => {
     setSelectedUser(user);
@@ -140,58 +168,56 @@ const UserManagementPage: React.FC = () => {
     setError(null);
   };
 
-  const handleCloseApproveDialog = () => {
+  const handleCloseApproveDialog = useCallback(() => {
     setApproveDialogOpen(false);
     setSelectedUser(null);
     setSelectedDepartmentId('');
     setSelectedGroupId('');
     setSelectedRole(UserRole.WORKER);
     setError(null);
-  };
+  }, []);
 
-  const handleApproveUser = async () => {
+  const handleApproveUser = useCallback(async () => {
+    // Validation
     if (!selectedUser) {
-      setError('No user selected');
+      setError('❌ No user selected. Please try again.');
       return;
     }
 
     if (!selectedRole) {
-      setError('Please select a role');
+      setError('❌ Please select a role before approving.');
       return;
     }
 
+    // Start approval process
+    setError(null);
+    setApproving(true);
+
     try {
-      setError(null);
-      setApproving(true);
-      
-      // Ensure role is a string (UserRole enum values are already strings)
+      // Prepare payload
       const roleString = String(selectedRole).toLowerCase().trim();
-      
-      // Validate role
       const validRoles = ['admin', 'worker', 'operator', 'leader'];
+      
       if (!validRoles.includes(roleString)) {
-        setError(`Invalid role: ${roleString}. Must be one of: ${validRoles.join(', ')}`);
+        setError(`❌ Invalid role: ${roleString}. Must be one of: ${validRoles.join(', ')}`);
         setApproving(false);
         return;
       }
 
-      const payload: {
-        role: string;
-        departmentId: string | null;
-        groupId: string | null;
-      } = {
+      const payload = {
         role: roleString,
-        departmentId: (selectedDepartmentId && selectedDepartmentId.trim()) ? selectedDepartmentId.trim() : null,
-        groupId: (selectedGroupId && selectedGroupId.trim()) ? selectedGroupId.trim() : null,
+        departmentId: selectedDepartmentId?.trim() || null,
+        groupId: selectedGroupId?.trim() || null,
       };
 
-      console.log('[Frontend] Approving user:', {
+      console.log('[APPROVE] Starting approval:', {
         userId: selectedUser.id,
         username: (selectedUser as any).username || selectedUser.email,
         payload,
         endpoint: ApiEndpoints.USERS.APPROVE(selectedUser.id),
       });
 
+      // Make API call
       const response = await axios.post(
         ApiEndpoints.USERS.APPROVE(selectedUser.id),
         payload,
@@ -199,43 +225,56 @@ const UserManagementPage: React.FC = () => {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
-          } 
+          },
+          timeout: 30000, // 30 second timeout
         }
       );
 
-      console.log('[Frontend] Approval successful:', response.data);
+      console.log('[APPROVE] ✅ Success:', response.data);
 
-      // Only close dialog and refresh on success
+      // Success - close dialog and refresh
       handleCloseApproveDialog();
-      await Promise.all([fetchUsers(), fetchPendingUsers()]);
-    } catch (error: any) {
-      console.error('[Frontend] Approve user error:', error);
-      console.error('[Frontend] Error response:', error.response?.data);
-      console.error('[Frontend] Error details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message,
-        userId: selectedUser?.id,
-        payload: {
-          role: selectedRole,
-          departmentId: selectedDepartmentId,
-          groupId: selectedGroupId,
-        },
-        endpoint: ApiEndpoints.USERS.APPROVE(selectedUser?.id || ''),
-      });
       
-      const errorMessage =
-        error.response?.data?.error || 
-        error.response?.data?.message || 
-        error.response?.data?.details ||
-        error.message || 
-        `Failed to approve user. ${error.response?.status ? `Status: ${error.response.status}` : ''} Please check the console for details.`;
+      // Refresh data
+      await Promise.all([
+        fetchUsers(),
+        fetchPendingUsers(),
+      ]);
+
+      // Show success message briefly
+      setError(null);
+      
+    } catch (error: any) {
+      console.error('[APPROVE] ❌ Error:', error);
+      
+      // Extract error message
+      let errorMessage = 'Failed to approve user. ';
+      
+      if (error.response) {
+        // Server responded with error
+        const errorData = error.response.data;
+        errorMessage += errorData?.error || errorData?.message || `HTTP ${error.response.status}`;
+        
+        if (errorData?.code) {
+          errorMessage += ` (Code: ${errorData.code})`;
+        }
+        
+        if (errorData?.details && process.env.NODE_ENV === 'development') {
+          errorMessage += ` - ${errorData.details}`;
+        }
+      } else if (error.request) {
+        // Request made but no response
+        errorMessage += 'No response from server. Please check your connection.';
+      } else {
+        // Error setting up request
+        errorMessage += error.message || 'Unknown error occurred.';
+      }
+      
       setError(errorMessage);
     } finally {
       setApproving(false);
     }
-  };
+  }, [selectedUser, selectedRole, selectedDepartmentId, selectedGroupId, token, handleCloseApproveDialog, fetchUsers, fetchPendingUsers]);
 
   const fetchDepartments = async () => {
     try {
@@ -832,41 +871,111 @@ const UserManagementPage: React.FC = () => {
         );
       })}
 
-      {/* Approve Dialog */}
+      {/* Approve Dialog - COMPLETE REBUILD */}
       <Dialog 
         open={approveDialogOpen} 
-        onClose={handleCloseApproveDialog} 
+        onClose={approving ? undefined : handleCloseApproveDialog}
         maxWidth="sm" 
         fullWidth
+        disableEscapeKeyDown={approving}
         PaperProps={{
           sx: {
             backgroundColor: colors.neutral[900],
             border: `1px solid ${colors.neutral[800]}`,
+            borderRadius: 2,
           },
         }}
       >
-        <DialogTitle sx={{ color: colors.neutral[100], borderBottom: `1px solid ${colors.neutral[800]}` }}>
-          Approve User & Assign Role/Department
+        <DialogTitle 
+          sx={{ 
+            color: colors.neutral[100], 
+            borderBottom: `1px solid ${colors.neutral[800]}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            pb: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Approve User & Assign Role
+            </Typography>
+            <Typography variant="caption" sx={{ color: colors.neutral[500], mt: 0.5, display: 'block' }}>
+              Press Enter to approve • Esc to cancel
+            </Typography>
+          </Box>
         </DialogTitle>
+        
         <DialogContent sx={{ mt: 2 }}>
+          {/* Error Alert */}
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-              {error}
+            <Alert 
+              severity="error" 
+              sx={{ mb: 2 }} 
+              onClose={() => setError(null)}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => setError(null)}
+                >
+                  <Delete sx={{ fontSize: 18 }} />
+                </IconButton>
+              }
+            >
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {error}
+              </Typography>
             </Alert>
           )}
-          <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mb: 3 }}>
-            Please assign a role and department for: <strong style={{ color: colors.neutral[100] }}>{selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}</strong>
-          </Typography>
+
+          {/* User Info */}
+          <Box sx={{ 
+            p: 2, 
+            mb: 3, 
+            backgroundColor: colors.neutral[950], 
+            borderRadius: 1,
+            border: `1px solid ${colors.neutral[800]}`,
+          }}>
+            <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mb: 1 }}>
+              Approving User:
+            </Typography>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100] }}>
+              {selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}
+            </Typography>
+            {selectedUser?.email && (selectedUser as any)?.username && (
+              <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mt: 0.5 }}>
+                @{(selectedUser as any).username}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Info Alert */}
           <Alert severity="info" sx={{ mb: 3 }}>
-            The user account will be approved and activated. Make sure to assign the correct role and department.
+            <Typography variant="body2">
+              The user account will be <strong>approved and activated</strong>. Make sure to assign the correct role, department, and group.
+            </Typography>
           </Alert>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel sx={{ color: colors.neutral[400] }}>Role *</InputLabel>
+
+          {/* Role Selection */}
+          <FormControl fullWidth sx={{ mb: 2 }} required>
+            <InputLabel 
+              sx={{ color: colors.neutral[400] }}
+              required
+            >
+              Role *
+            </InputLabel>
             <Select
               value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+              onChange={(e) => {
+                setSelectedRole(e.target.value as UserRole);
+                setError(null);
+              }}
               label="Role *"
               required
+              autoFocus
+              disabled={approving}
               sx={{
                 color: colors.neutral[100],
                 '& .MuiOutlinedInput-notchedOutline': {
@@ -880,18 +989,54 @@ const UserManagementPage: React.FC = () => {
                 },
               }}
             >
-              <MenuItem value={UserRole.WORKER}>Worker</MenuItem>
-              <MenuItem value={UserRole.OPERATOR}>Operator</MenuItem>
-              <MenuItem value={UserRole.LEADER}>Leader</MenuItem>
-              <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
+              <MenuItem value={UserRole.WORKER}>
+                <Box>
+                  <Typography>Worker</Typography>
+                  <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
+                    Basic user access
+                  </Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value={UserRole.OPERATOR}>
+                <Box>
+                  <Typography>Operator</Typography>
+                  <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
+                    Can create reports
+                  </Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value={UserRole.LEADER}>
+                <Box>
+                  <Typography>Leader</Typography>
+                  <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
+                    Team management access
+                  </Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value={UserRole.ADMIN}>
+                <Box>
+                  <Typography>Admin</Typography>
+                  <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
+                    Full system access
+                  </Typography>
+                </Box>
+              </MenuItem>
             </Select>
           </FormControl>
+
+          {/* Department Selection */}
           <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel sx={{ color: colors.neutral[400] }}>Department</InputLabel>
+            <InputLabel sx={{ color: colors.neutral[400] }}>
+              Department
+            </InputLabel>
             <Select
               value={selectedDepartmentId}
-              onChange={(e) => setSelectedDepartmentId(e.target.value)}
+              onChange={(e) => {
+                setSelectedDepartmentId(e.target.value);
+                setError(null);
+              }}
               label="Department"
+              disabled={approving || departments.length === 0}
               sx={{
                 color: colors.neutral[100],
                 '& .MuiOutlinedInput-notchedOutline': {
@@ -906,7 +1051,7 @@ const UserManagementPage: React.FC = () => {
               }}
             >
               <MenuItem value="">
-                <em>None</em>
+                <em>None (Optional)</em>
               </MenuItem>
               {departments.map((dept) => (
                 <MenuItem key={dept.id} value={dept.id}>
@@ -914,13 +1059,26 @@ const UserManagementPage: React.FC = () => {
                 </MenuItem>
               ))}
             </Select>
+            {departments.length === 0 && (
+              <Typography variant="caption" sx={{ color: colors.warning[500], mt: 0.5, display: 'block' }}>
+                No departments available. Create departments first.
+              </Typography>
+            )}
           </FormControl>
+
+          {/* Group Selection */}
           <FormControl fullWidth>
-            <InputLabel sx={{ color: colors.neutral[400] }}>Group</InputLabel>
+            <InputLabel sx={{ color: colors.neutral[400] }}>
+              Group
+            </InputLabel>
             <Select
               value={selectedGroupId}
-              onChange={(e) => setSelectedGroupId(e.target.value)}
+              onChange={(e) => {
+                setSelectedGroupId(e.target.value);
+                setError(null);
+              }}
               label="Group"
+              disabled={approving || groups.length === 0}
               sx={{
                 color: colors.neutral[100],
                 '& .MuiOutlinedInput-notchedOutline': {
@@ -935,7 +1093,7 @@ const UserManagementPage: React.FC = () => {
               }}
             >
               <MenuItem value="">
-                <em>None</em>
+                <em>None (Optional)</em>
               </MenuItem>
               {groups.map((group) => (
                 <MenuItem key={group.id} value={group.id}>
@@ -943,15 +1101,29 @@ const UserManagementPage: React.FC = () => {
                 </MenuItem>
               ))}
             </Select>
+            {groups.length === 0 && (
+              <Typography variant="caption" sx={{ color: colors.warning[500], mt: 0.5, display: 'block' }}>
+                No groups available. Create groups first.
+              </Typography>
+            )}
           </FormControl>
         </DialogContent>
+        
         <DialogActions sx={{ p: 2, borderTop: `1px solid ${colors.neutral[800]}` }}>
           <Button 
             onClick={handleCloseApproveDialog} 
             variant="outlined"
-            sx={{ color: colors.neutral[300], borderColor: colors.neutral[700] }}
+            disabled={approving}
+            sx={{ 
+              color: colors.neutral[300], 
+              borderColor: colors.neutral[700],
+              '&:hover': {
+                borderColor: colors.neutral[600],
+                backgroundColor: colors.neutral[800],
+              },
+            }}
           >
-            Cancel
+            Cancel (Esc)
           </Button>
           <Button 
             onClick={handleApproveUser} 
@@ -967,16 +1139,11 @@ const UserManagementPage: React.FC = () => {
                 backgroundColor: colors.neutral[700],
                 color: colors.neutral[500],
               },
+              minWidth: 140,
             }}
+            startIcon={approving ? <CircularProgress size={16} color="inherit" /> : null}
           >
-            {approving ? (
-              <>
-                <CircularProgress size={16} sx={{ mr: 1 }} />
-                Approving...
-              </>
-            ) : (
-              'Approve & Assign'
-            )}
+            {approving ? 'Approving...' : 'Approve & Assign (Enter)'}
           </Button>
         </DialogActions>
       </Dialog>

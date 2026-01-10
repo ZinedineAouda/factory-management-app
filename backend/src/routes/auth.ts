@@ -396,145 +396,194 @@ router.post('/users/approve/:username', async (req, res) => {
   }
 });
 
-// Approve user (Admin only) - Phase 2
+// Approve user (Admin only) - COMPLETE REBUILD
 router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+  const startTime = Date.now();
+  const userId = req.params.id;
+  
   try {
-    const { id } = req.params;
+    // Step 1: Validate request body
     const { role, departmentId, groupId } = req.body;
+    
+    console.log(`[APPROVE] Starting approval process for user ${userId}`);
+    console.log(`[APPROVE] Request body:`, { role, departmentId, groupId });
+    console.log(`[APPROVE] Admin user:`, req.user?.id);
 
-    console.log(`[Approve User] Starting approval for user ID: ${id}`, { role, departmentId, groupId });
-
-    // Get current user data - SAFE: only SELECT, no deletion
-    const user = await dbGet('SELECT id, username, status, email, password_hash, role, department_id, group_id, created_at FROM users WHERE id = ?', [id]);
-    if (!user) {
-      console.error(`[Approve User] User not found: ${id}`);
-      return res.status(404).json({ error: 'User not found' });
+    // Step 2: Validate role is provided
+    if (!role) {
+      console.error(`[APPROVE] Missing role parameter`);
+      return res.status(400).json({ 
+        error: 'Role is required',
+        code: 'MISSING_ROLE'
+      });
     }
 
-    if (user.status === 'active') {
-      console.warn(`[Approve User] User already approved: ${id}`);
-      return res.status(400).json({ error: 'User is already approved' });
-    }
-
-    // Validate role - it's required for approval
-    if (!role || typeof role !== 'string') {
-      console.error(`[Approve User] Missing or invalid role for user ${id}`, { received: role });
-      return res.status(400).json({ error: 'Role is required for approval' });
-    }
-
+    // Step 3: Normalize and validate role
+    const normalizedRole = String(role).toLowerCase().trim();
     const validRoles = ['worker', 'operator', 'leader', 'admin'];
-    const normalizedRole = role.toLowerCase().trim();
+    
     if (!validRoles.includes(normalizedRole)) {
-      console.error(`[Approve User] Invalid role for user ${id}`, { received: role, normalized: normalizedRole });
-      return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
+      console.error(`[APPROVE] Invalid role: ${normalizedRole}`);
+      return res.status(400).json({ 
+        error: `Invalid role. Must be one of: ${validRoles.join(', ')}`,
+        code: 'INVALID_ROLE',
+        received: role,
+        validRoles
+      });
     }
 
-    // Validate department exists if provided
-    if (departmentId && departmentId.trim()) {
-      const dept = await dbGet('SELECT id FROM departments WHERE id = ?', [departmentId]);
-      if (!dept) {
-        console.error(`[Approve User] Invalid department ID: ${departmentId}`);
-        return res.status(400).json({ error: 'Invalid department ID' });
-      }
+    // Step 4: Get user to approve
+    const user = await dbGet(
+      'SELECT id, username, email, status, role, department_id, group_id FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!user) {
+      console.error(`[APPROVE] User not found: ${userId}`);
+      return res.status(404).json({ 
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
     }
 
-    // Validate group exists if provided
-    if (groupId && groupId.trim()) {
-      const group = await dbGet('SELECT id FROM groups WHERE id = ?', [groupId]);
-      if (!group) {
-        console.error(`[Approve User] Invalid group ID: ${groupId}`);
-        return res.status(400).json({ error: 'Invalid group ID' });
-      }
-    }
-
-    // SAFE UPDATE: Only updates status, role, department_id, group_id, and updated_at
-    // Does NOT delete any data - all existing user data (email, password_hash, created_at, etc.) is preserved
-    const finalDeptId = (departmentId && departmentId.trim()) ? departmentId.trim() : null;
-    const finalGroupId = (groupId && groupId.trim()) ? groupId.trim() : null;
-
-    console.log(`[Approve User] Updating user ${id}`, {
-      oldStatus: user.status,
-      newStatus: 'active',
-      oldRole: user.role,
-      newRole: normalizedRole,
-      oldDept: user.department_id,
-      newDept: finalDeptId,
-      oldGroup: user.group_id,
-      newGroup: finalGroupId,
+    console.log(`[APPROVE] Found user:`, { 
+      id: user.id, 
+      username: user.username, 
+      email: user.email, 
+      currentStatus: user.status 
     });
 
-    // UPDATE query - SAFE: only modifies specific columns, preserves all other data
-    await dbRun(
+    // Step 5: Check if already approved
+    if (user.status === 'active') {
+      console.warn(`[APPROVE] User already approved: ${userId}`);
+      return res.status(400).json({ 
+        error: 'User is already approved',
+        code: 'ALREADY_APPROVED'
+      });
+    }
+
+    // Step 6: Validate department if provided
+    let finalDeptId = null;
+    if (departmentId && String(departmentId).trim()) {
+      const deptId = String(departmentId).trim();
+      const dept = await dbGet('SELECT id, name FROM departments WHERE id = ?', [deptId]);
+      if (!dept) {
+        console.error(`[APPROVE] Invalid department ID: ${deptId}`);
+        return res.status(400).json({ 
+          error: 'Invalid department ID',
+          code: 'INVALID_DEPARTMENT',
+          departmentId: deptId
+        });
+      }
+      finalDeptId = deptId;
+      console.log(`[APPROVE] Valid department: ${dept.name}`);
+    }
+
+    // Step 7: Validate group if provided
+    let finalGroupId = null;
+    if (groupId && String(groupId).trim()) {
+      const grpId = String(groupId).trim();
+      const group = await dbGet('SELECT id, name FROM groups WHERE id = ?', [grpId]);
+      if (!group) {
+        console.error(`[APPROVE] Invalid group ID: ${grpId}`);
+        return res.status(400).json({ 
+          error: 'Invalid group ID',
+          code: 'INVALID_GROUP',
+          groupId: grpId
+        });
+      }
+      finalGroupId = grpId;
+      console.log(`[APPROVE] Valid group: ${group.name}`);
+    }
+
+    // Step 8: Update user (SAFE - only updates specific fields, preserves all other data)
+    console.log(`[APPROVE] Updating user with:`, {
+      status: 'active',
+      role: normalizedRole,
+      departmentId: finalDeptId,
+      groupId: finalGroupId
+    });
+
+    const updateResult = await dbRun(
       `UPDATE users 
        SET status = ?, 
            role = ?, 
            department_id = ?, 
-           group_id = ?, 
-           updated_at = CURRENT_TIMESTAMP 
+           group_id = ?,
+           updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      ['active', normalizedRole, finalDeptId, finalGroupId, id]
+      ['active', normalizedRole, finalDeptId, finalGroupId, userId]
     );
 
-    console.log(`[Approve User] Successfully updated user ${id}`);
+    console.log(`[APPROVE] Update result:`, { 
+      changes: (updateResult as any).changes,
+      lastID: (updateResult as any).lastID 
+    });
 
-    // Notify the approved user
+    // Step 9: Create notification (non-blocking)
     try {
       const notificationId = uuidv4();
       await dbRun(
-        'INSERT INTO notifications (id, user_id, type, title, message, related_id, is_read) VALUES (?, ?, ?, ?, ?, ?, 0)',
+        `INSERT INTO notifications (id, user_id, type, title, message, related_id, is_read, created_at) 
+         VALUES (?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)`,
         [
           notificationId,
-          id,
+          userId,
           'account_approved',
           'Account Approved',
           'Your account has been approved. You can now log in and access the system.',
-          id
+          userId
         ]
       );
-      console.log(`[Approve User] Notification sent to user ${id}`);
+      console.log(`[APPROVE] Notification created: ${notificationId}`);
     } catch (notifError: any) {
-      console.error('[Approve User] Error creating approval notification:', notifError);
-      // Don't fail approval if notification fails
+      console.warn(`[APPROVE] Failed to create notification (non-critical):`, notifError.message);
+      // Continue even if notification fails
     }
 
-    // Return updated user data
-    const updatedUser = await dbGet(
-      `SELECT u.id, u.username, u.email, u.role, u.status, u.department_id, u.group_id,
-              d.name as department_name, g.name as group_name
-       FROM users u
-       LEFT JOIN departments d ON u.department_id = d.id
-       LEFT JOIN groups g ON u.group_id = g.id
-       WHERE u.id = ?`,
-      [id]
-    );
+    // Step 10: Get updated user data
+    const updatedUser = await getUserWithDepartment(userId);
+    
+    if (!updatedUser) {
+      console.error(`[APPROVE] Failed to retrieve updated user data`);
+      return res.status(500).json({ 
+        error: 'User approved but failed to retrieve updated data',
+        code: 'RETRIEVE_ERROR'
+      });
+    }
 
-    console.log(`[Approve User] Approval completed successfully for user ${id}`);
-    res.json({
+    const responseData = {
       message: 'User approved successfully',
-      user: {
-        id: updatedUser.id,
-        username: updatedUser.username,
-        email: updatedUser.email,
-        status: 'active',
-        role: normalizedRole,
-        departmentId: updatedUser.department_id,
-        departmentName: updatedUser.department_name,
-        groupId: updatedUser.group_id,
-        groupName: updatedUser.group_name,
-      },
-    });
+      user: formatUserResponse(updatedUser),
+    };
+
+    const duration = Date.now() - startTime;
+    console.log(`[APPROVE] ✅ Successfully approved user ${userId} in ${duration}ms`);
+
+    res.json(responseData);
+
   } catch (error: any) {
-    console.error('[Approve User] Error details:', {
+    const duration = Date.now() - startTime;
+    console.error(`[APPROVE] ❌ Error after ${duration}ms:`, {
       message: error.message,
       code: error.code,
       stack: error.stack,
-      userId: req.params.id,
+      userId,
       body: req.body,
     });
-    res.status(500).json({ 
+
+    // Provide detailed error in development
+    const errorResponse: any = {
       error: 'Failed to approve user',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+      code: 'APPROVAL_ERROR'
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+      errorResponse.details = error.message;
+      errorResponse.stack = error.stack;
+    }
+
+    res.status(500).json(errorResponse);
   }
 });
 
