@@ -638,8 +638,10 @@ const ProductsPage: React.FC = () => {
                     <TableRow>
                       <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Product</TableCell>
                       <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Worker</TableCell>
+                      <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Group</TableCell>
                       <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }} align="right">Amount</TableCell>
                       <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Delivery Date</TableCell>
+                      <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Delivery Hour</TableCell>
                       <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Notes</TableCell>
                       <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Created At</TableCell>
                     </TableRow>
@@ -649,11 +651,17 @@ const ProductsPage: React.FC = () => {
                       <TableRow key={delivery.id} hover>
                         <TableCell sx={{ color: colors.neutral[100] }}>{delivery.product_name || 'Unknown'}</TableCell>
                         <TableCell sx={{ color: colors.neutral[100] }}>{delivery.worker_username || 'Unknown'}</TableCell>
+                        <TableCell sx={{ color: colors.neutral[300] }}>
+                          {delivery.group_name || 'No Group'}
+                        </TableCell>
                         <TableCell align="right" sx={{ color: colors.success[500], fontWeight: 600 }}>
                           {delivery.amount?.toLocaleString() || '0'}
                         </TableCell>
                         <TableCell sx={{ color: colors.neutral[300] }}>
                           {delivery.delivery_date ? new Date(delivery.delivery_date).toLocaleDateString() : 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ color: colors.primary[400], fontWeight: 500, fontFamily: 'monospace' }}>
+                          {delivery.delivery_hour || (delivery.created_at ? new Date(delivery.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'N/A')}
                         </TableCell>
                         <TableCell sx={{ color: colors.neutral[400], maxWidth: 200 }}>
                           {delivery.notes || '-'}

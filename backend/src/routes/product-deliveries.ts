@@ -73,10 +73,12 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     calculateAnalytics().catch(err => console.error('Analytics update error:', err));
 
     const delivery = await dbGet(
-      `SELECT pd.*, u.username as worker_username, p.name as product_name
+      `SELECT pd.*, u.username as worker_username, p.name as product_name,
+       g.name as group_name, strftime('%H:%M', pd.created_at) as delivery_hour
        FROM product_deliveries pd
        JOIN users u ON pd.worker_id = u.id
        JOIN products p ON pd.product_id = p.id
+       LEFT JOIN groups g ON u.group_id = g.id
        WHERE pd.id = ?`,
       [deliveryId]
     );
@@ -105,10 +107,12 @@ router.get('/product/:productId', authenticate, requirePermission('can_view_prod
     if (userRole === 'admin') {
       // Admin can see all deliveries
       deliveries = await dbAll(
-        `SELECT pd.*, u.username as worker_username, p.name as product_name
+        `SELECT pd.*, u.username as worker_username, p.name as product_name,
+         g.name as group_name, strftime('%H:%M', pd.created_at) as delivery_hour
          FROM product_deliveries pd
          JOIN users u ON pd.worker_id = u.id
          JOIN products p ON pd.product_id = p.id
+         LEFT JOIN groups g ON u.group_id = g.id
          WHERE pd.product_id = ?
          ORDER BY pd.delivery_date DESC, pd.created_at DESC`,
         [productId]
@@ -116,10 +120,12 @@ router.get('/product/:productId', authenticate, requirePermission('can_view_prod
     } else {
       // Non-admin users see their own deliveries
       deliveries = await dbAll(
-        `SELECT pd.*, u.username as worker_username, p.name as product_name
+        `SELECT pd.*, u.username as worker_username, p.name as product_name,
+         g.name as group_name, strftime('%H:%M', pd.created_at) as delivery_hour
          FROM product_deliveries pd
          JOIN users u ON pd.worker_id = u.id
          JOIN products p ON pd.product_id = p.id
+         LEFT JOIN groups g ON u.group_id = g.id
          WHERE pd.product_id = ? AND pd.worker_id = ?
          ORDER BY pd.delivery_date DESC, pd.created_at DESC`,
         [productId, userId]
@@ -143,19 +149,23 @@ router.get('/', authenticate, requirePermission('can_view_products'), async (req
     if (userRole === 'admin') {
       // Admin sees all deliveries
       deliveries = await dbAll(
-        `SELECT pd.*, u.username as worker_username, p.name as product_name
+        `SELECT pd.*, u.username as worker_username, p.name as product_name, 
+         g.name as group_name, strftime('%H:%M', pd.created_at) as delivery_hour
          FROM product_deliveries pd
          JOIN users u ON pd.worker_id = u.id
          JOIN products p ON pd.product_id = p.id
+         LEFT JOIN groups g ON u.group_id = g.id
          ORDER BY pd.delivery_date DESC, pd.created_at DESC`
       );
     } else {
       // Non-admin users see their own deliveries
       deliveries = await dbAll(
-        `SELECT pd.*, u.username as worker_username, p.name as product_name
+        `SELECT pd.*, u.username as worker_username, p.name as product_name,
+         g.name as group_name, strftime('%H:%M', pd.created_at) as delivery_hour
          FROM product_deliveries pd
          JOIN users u ON pd.worker_id = u.id
          JOIN products p ON pd.product_id = p.id
+         LEFT JOIN groups g ON u.group_id = g.id
          WHERE pd.worker_id = ?
          ORDER BY pd.delivery_date DESC, pd.created_at DESC`,
         [userId]

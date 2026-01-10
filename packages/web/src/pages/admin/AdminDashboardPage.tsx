@@ -11,6 +11,7 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  TextField,
 } from '@mui/material';
 import {
   People,
@@ -19,10 +20,11 @@ import {
   ArrowForward,
   MoreVert,
   Inventory,
-  Description,
   Delete,
   AccessTime,
   CalendarToday,
+  LocalShipping,
+  Refresh,
 } from '@mui/icons-material';
 import {
   AreaChart,
@@ -63,6 +65,14 @@ interface QuickAction {
   color: string;
 }
 
+interface ProductionAnalytics {
+  totalDeliveries: number;
+  totalAmount: number;
+  deliveriesByProduct: Array<{ productName: string; deliveryCount: number; totalAmount: number }>;
+  deliveriesByWorker: Array<{ workerName: string; deliveryCount: number; totalAmount: number }>;
+  deliveriesByDate: Array<{ date: string; amount: number }>;
+}
+
 const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { token } = useSelector((state: RootState) => state.auth);
@@ -76,6 +86,22 @@ const AdminDashboardPage: React.FC = () => {
   const [activityData, setActivityData] = useState<Array<{ name: string; tasks: number }>>([]);
   const [departmentData, setDepartmentData] = useState<Array<{ name: string; value: number; color: string }>>([]);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [productionAnalytics, setProductionAnalytics] = useState<ProductionAnalytics | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  
+  // Date range state - default to last 30 days (same as analytics page)
+  const getDefaultStartDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split('T')[0];
+  };
+  
+  const getDefaultEndDate = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+  
+  const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
+  const [endDate, setEndDate] = useState<string>(getDefaultEndDate());
 
   // Update date and time every second
   useEffect(() => {
@@ -84,6 +110,48 @@ const AdminDashboardPage: React.FC = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch analytics in parallel with other stats
+  const fetchAnalytics = async () => {
+    try {
+      setLoadingAnalytics(true);
+      
+      // Build query parameters for date filtering
+      const params = new URLSearchParams();
+      if (startDate) {
+        params.append('startDate', startDate);
+      }
+      if (endDate) {
+        params.append('endDate', endDate);
+      }
+      const queryString = params.toString();
+      const url = queryString ? `${ApiEndpoints.ANALYTICS.PRODUCTION}?${queryString}` : ApiEndpoints.ANALYTICS.PRODUCTION;
+      
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      const data = response.data || {};
+      setProductionAnalytics({
+        totalDeliveries: data.totalDeliveries || 0,
+        totalAmount: data.totalAmount || 0,
+        deliveriesByProduct: data.deliveriesByProduct || [],
+        deliveriesByWorker: data.deliveriesByWorker || [],
+        deliveriesByDate: data.deliveriesByDate || [],
+      });
+    } catch (err: any) {
+      console.error('Analytics fetch error:', err);
+      setProductionAnalytics({
+        totalDeliveries: 0,
+        totalAmount: 0,
+        deliveriesByProduct: [],
+        deliveriesByWorker: [],
+        deliveriesByDate: [],
+      });
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -168,8 +236,11 @@ const AdminDashboardPage: React.FC = () => {
       }
     };
 
-    fetchStats();
-  }, [token]);
+    if (token) {
+      fetchStats();
+      fetchAnalytics(); // Fetch analytics in parallel
+    }
+  }, [token, startDate, endDate]);
 
   const handleClearActivity = async () => {
     if (!window.confirm('Are you sure you want to clear all recent activity? This action cannot be undone.')) {
@@ -363,6 +434,117 @@ const AdminDashboardPage: React.FC = () => {
         </Box>
       </Box>
 
+      {/* Analytics Date Range Picker */}
+      <Box
+        sx={{
+          mb: 3,
+          p: 2,
+          backgroundColor: colors.neutral[900],
+          border: `1px solid ${colors.neutral[800]}`,
+          borderRadius: 2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.neutral[300], mr: 1 }}>
+          Analytics Period:
+        </Typography>
+        <TextField
+          label="Start Date"
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+          size="small"
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: colors.neutral[800],
+              '& fieldset': {
+                borderColor: colors.neutral[700],
+              },
+              '&:hover fieldset': {
+                borderColor: colors.neutral[600],
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: colors.primary[500],
+              },
+            },
+            '& .MuiInputBase-input': {
+              color: colors.neutral[100],
+            },
+            '& .MuiInputLabel-root': {
+              color: colors.neutral[400],
+            },
+          }}
+        />
+        <TextField
+          label="End Date"
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+          size="small"
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: colors.neutral[800],
+              '& fieldset': {
+                borderColor: colors.neutral[700],
+              },
+              '&:hover fieldset': {
+                borderColor: colors.neutral[600],
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: colors.primary[500],
+              },
+            },
+            '& .MuiInputBase-input': {
+              color: colors.neutral[100],
+            },
+            '& .MuiInputLabel-root': {
+              color: colors.neutral[400],
+            },
+          }}
+        />
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => {
+            setStartDate(getDefaultStartDate());
+            setEndDate(getDefaultEndDate());
+          }}
+          sx={{
+            ml: 'auto',
+            borderColor: colors.neutral[700],
+            color: colors.neutral[300],
+            '&:hover': {
+              borderColor: colors.neutral[600],
+              backgroundColor: colors.neutral[800],
+            },
+          }}
+        >
+          Reset
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={loadingAnalytics ? <CircularProgress size={16} /> : <Refresh />}
+          onClick={fetchAnalytics}
+          disabled={loadingAnalytics}
+          sx={{
+            borderColor: colors.primary[700],
+            color: colors.primary[300],
+            '&:hover': {
+              borderColor: colors.primary[600],
+              backgroundColor: alpha(colors.primary[500], 0.1),
+            },
+          }}
+        >
+          Refresh
+        </Button>
+      </Box>
+
       {/* Stats Grid */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} lg={3}>
@@ -391,25 +573,25 @@ const AdminDashboardPage: React.FC = () => {
           )}
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          {loading ? (
+          {loadingAnalytics ? (
             <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
           ) : (
             <StatCard
-              title="Products"
-              value={0}
-              icon={<Inventory />}
+              title="Total Deliveries"
+              value={productionAnalytics?.totalDeliveries || 0}
+              icon={<LocalShipping />}
               color="warning"
             />
           )}
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          {loading ? (
+          {loadingAnalytics ? (
             <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
           ) : (
             <StatCard
-              title="Reports"
-              value={0}
-              icon={<Description />}
+              title="Total Amount"
+              value={productionAnalytics?.totalAmount?.toLocaleString() || '0'}
+              icon={<TrendingUp />}
               color="info"
             />
           )}
