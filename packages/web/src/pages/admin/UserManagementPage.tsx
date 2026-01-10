@@ -34,8 +34,6 @@ import {
   FilterList,
   Edit,
   Lock,
-  Visibility,
-  VisibilityOff,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { DataTable, StatusBadge } from '../../components/ui';
@@ -237,7 +235,7 @@ const UserManagementPage: React.FC = () => {
         
         // Switch to appropriate tab based on role
         setTimeout(() => {
-          const approvedRole = normalizedRole;
+          const approvedRole = roleString;
           if (approvedRole === 'worker') setTabValue(1);
           else if (approvedRole === 'operator') setTabValue(2);
           else if (approvedRole === 'leader') setTabValue(3);
