@@ -180,7 +180,7 @@ router.get('/my-deliveries', authenticate, requirePermission('can_view_products'
        JOIN products p ON pd.product_id = p.id
        WHERE pd.worker_id = ?
        ORDER BY pd.delivery_date DESC, pd.created_at DESC`,
-      [workerId]
+      [userId]
     );
 
     res.json(deliveries);
