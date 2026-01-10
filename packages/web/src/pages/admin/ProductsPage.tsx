@@ -83,25 +83,46 @@ const ProductsPage: React.FC = () => {
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Only proceed if user has view permission
     if (!canViewProducts) {
       setError('You do not have permission to view products.');
       setLoading(false);
+      setProducts([]);
       return;
     }
+    
+    // Fetch products for users with view permission
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canViewProducts, token]);
 
   const fetchProducts = async () => {
+    // Double-check permission before fetching
+    if (!canViewProducts) {
+      setError('You do not have permission to view products.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
+      console.log('[ProductsPage] Fetching products for user with canViewProducts:', canViewProducts);
+      
       const response = await axios.get(ApiEndpoints.PRODUCTS.LIST, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setProducts(response.data || []);
+      
+      const fetchedProducts = response.data || [];
+      console.log('[ProductsPage] Fetched products count:', fetchedProducts.length);
+      setProducts(fetchedProducts);
+      
+      if (fetchedProducts.length === 0) {
+        console.log('[ProductsPage] No products found in response');
+      }
     } catch (err: any) {
-      console.error('Fetch products error:', err);
+      console.error('[ProductsPage] Fetch products error:', err);
+      console.error('[ProductsPage] Error response:', err.response?.data);
       const errorMsg = err.response?.data?.error || 'Failed to fetch products';
       setError(errorMsg);
       setProducts([]); // Reset products on error
@@ -371,11 +392,27 @@ const ProductsPage: React.FC = () => {
         </Alert>
       )}
 
-      {loading && products.length === 0 ? (
+      {/* Loading State */}
+      {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
           <CircularProgress />
         </Box>
-      ) : !loading && products.length === 0 ? (
+      ) : !canViewProducts ? (
+        /* No Permission State */
+        <Box
+          sx={{
+            backgroundColor: colors.neutral[900],
+            border: `1px solid ${colors.neutral[800]}`,
+            borderRadius: 3,
+            p: 3,
+          }}
+        >
+          <Alert severity="error">
+            You do not have permission to view products.
+          </Alert>
+        </Box>
+      ) : products.length === 0 ? (
+        /* Empty State - No Products */
         <Box
           sx={{
             backgroundColor: colors.neutral[900],
@@ -386,7 +423,9 @@ const ProductsPage: React.FC = () => {
           <EmptyState
             icon={<Inventory />}
             title="No products yet"
-            description={canEditProducts ? "Create your first product to start tracking production." : "No products available yet."}
+            description={canEditProducts 
+              ? "Create your first product to start tracking production." 
+              : "No products are available at the moment. Products created by users with edit permissions will appear here."}
             action={canEditProducts ? {
               label: 'Create Product',
               onClick: handleOpenProductDialog,
@@ -394,6 +433,7 @@ const ProductsPage: React.FC = () => {
           />
         </Box>
       ) : (
+        /* Products Grid - Show all products for users with view permission */
         <Grid container spacing={2}>
           {products.map((product) => {
             const imageUrl = getImageUrl(product.image_url);
