@@ -47,6 +47,22 @@ interface Product {
   updated_at: string;
 }
 
+/**
+ * ProductsPage - Full management page for users with can_edit_products permission
+ * 
+ * This page is ONLY for users who can create, edit, and delete products.
+ * Features:
+ * - View all products
+ * - Create new products
+ * - Edit existing products
+ * - Delete products
+ * - Full product management capabilities
+ * 
+ * Route: /admin/products
+ * Protected by: requiredPermission={{ edit: 'Products' }}
+ * 
+ * Users with view-only permissions are routed to /products (ProductViewPage) instead
+ */
 const ProductsPage: React.FC = () => {
   const { token } = useSelector((state: RootState) => state.auth);
   const { canEdit, isAdmin } = usePermissions();
@@ -54,8 +70,8 @@ const ProductsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // This page is only for users with edit permissions
-  // Users with view-only permissions should use /products route
+  // Permission check: Only users with edit permission can access this page
+  // View-only users are automatically routed to /products (ProductViewPage)
   const canEditProducts = isAdmin || canEdit('Products');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -69,15 +85,16 @@ const ProductsPage: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only users with edit permissions can access this page
+    // Safety check: Redirect message if view-only user somehow accesses this page
+    // (This shouldn't happen due to route protection, but added as safeguard)
     if (!canEditProducts) {
-      setError('You do not have permission to manage products. Users with view-only permissions should use the Products view page.');
+      setError('You do not have permission to manage products. Users with view-only permissions should use the Products view page at /products.');
       setLoading(false);
       setProducts([]);
       return;
     }
     
-    // Fetch products
+    // Fetch all products for management
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canEditProducts, token]);
@@ -291,6 +308,7 @@ const ProductsPage: React.FC = () => {
           <Button variant="outlined" startIcon={<Refresh />} onClick={fetchProducts}>
             Refresh
           </Button>
+          {/* Create Product button - Only visible to users with edit permissions */}
           <Button variant="contained" startIcon={<Add />} onClick={handleOpenProductDialog}>
             Create Product
           </Button>
@@ -416,6 +434,7 @@ const ProductsPage: React.FC = () => {
                     />
                   </CardContent>
                   <CardActions sx={{ p: 1.5, pt: 0, gap: 0.5, flexWrap: 'wrap' }}>
+                    {/* Edit and Delete buttons - Only available on this admin page */}
                     <Tooltip title="Edit">
                       <IconButton
                         size="small"

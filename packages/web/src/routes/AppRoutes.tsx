@@ -202,7 +202,8 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      {/* Products page - only for users with edit permissions */}
+      {/* Products Management Page - ONLY for users with EDIT permissions */}
+      {/* Features: Create, Edit, Delete products */}
       <Route
         path="/admin/products"
         element={
@@ -211,7 +212,8 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      {/* Products view page - for users with view-only permissions */}
+      {/* Products View Page - ONLY for users with VIEW-ONLY permissions */}
+      {/* Features: View products, Enter delivery amounts (NO create/edit/delete) */}
       <Route
         path="/products"
         element={

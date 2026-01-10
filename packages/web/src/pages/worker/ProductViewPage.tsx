@@ -44,6 +44,18 @@ interface Product {
   updated_at: string;
 }
 
+/**
+ * ProductViewPage - View-only page for users with can_view_products permission
+ * 
+ * This page is ONLY for users who can view products but NOT edit them.
+ * Features:
+ * - View all available products
+ * - Enter delivery amounts (for analytics)
+ * - NO create/edit/delete functionality
+ * 
+ * Route: /products
+ * Protected by: requiredPermission={{ view: 'Products' }}
+ */
 const ProductViewPage: React.FC = () => {
   const { token } = useSelector((state: RootState) => state.auth);
   const { canView, isAdmin } = usePermissions();
@@ -51,7 +63,8 @@ const ProductViewPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if user can view products
+  // Permission check: Only users with view permission can access this page
+  // (Edit users are routed to /admin/products instead)
   const canViewProducts = isAdmin || canView('Products');
   
   // Delivery dialog states
@@ -197,6 +210,7 @@ const ProductViewPage: React.FC = () => {
       title="Products"
       subtitle="View products and enter delivery amounts"
       actions={
+        // Only Refresh button - NO Create Product button for view-only users
         <Button variant="outlined" startIcon={<Refresh />} onClick={fetchProducts}>
           Refresh
         </Button>
@@ -312,6 +326,7 @@ const ProductViewPage: React.FC = () => {
                     />
                   </CardContent>
                   <CardActions sx={{ p: 1.5, pt: 0, gap: 0.5, justifyContent: 'center' }}>
+                    {/* ONLY delivery button - NO Edit/Delete buttons for view-only users */}
                     <Tooltip title="Enter Delivery Amount">
                       <Button
                         variant="outlined"

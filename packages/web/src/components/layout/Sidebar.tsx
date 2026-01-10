@@ -106,12 +106,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
     }
 
     // Products - route based on permissions
+    // IMPORTANT: View-only users see different page than edit users
     if (isAdmin || (permissions && canView('Products'))) {
-      // Users with edit permissions go to admin products page
+      // Users with EDIT permissions → Full management page with create/edit/delete
       if (isAdmin || (permissions && canEdit('Products'))) {
         items.push({ label: 'Products', icon: <Inventory />, path: '/admin/products' });
       } else {
-        // Users with view-only permissions go to view-only products page
+        // Users with VIEW-ONLY permissions → View-only page (no create/edit/delete buttons)
         items.push({ label: 'Products', icon: <Inventory />, path: '/products' });
       }
     }
