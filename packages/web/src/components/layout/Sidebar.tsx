@@ -35,6 +35,7 @@ import {
 } from '@mui/icons-material';
 import { RootState } from '../../store';
 import { colors } from '../../theme';
+import { usePermissions } from '../../hooks/usePermissions';
 
 // Layout Constants
 export const SIDEBAR_WIDTH = 260;
@@ -60,47 +61,100 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useSelector((state: RootState) => state.auth);
+  const { permissions, isAdmin, canView } = usePermissions();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   const getNavItems = (): NavItem[] => {
     if (!user) return [];
 
-    const role = user.role;
+    const items: NavItem[] = [];
     
-    if (role === 'admin') {
-      return [
-        { label: 'Dashboard', icon: <Dashboard />, path: '/admin/dashboard' },
-        { label: 'Users', icon: <People />, path: '/admin/users' },
-        { label: 'Departments', icon: <Business />, path: '/admin/departments' },
-        { label: 'Groups & Shifts', icon: <Group />, path: '/admin/groups' },
-        { label: 'Products', icon: <Inventory />, path: '/admin/products' },
-        { label: 'Reports', icon: <Description />, path: '/admin/reports' },
-        { label: 'Analytics', icon: <Analytics />, path: '/admin/analytics' },
-        { label: 'Role Management', icon: <Security />, path: '/admin/roles' },
-        { label: 'Reg. Codes', icon: <VpnKey />, path: '/admin/codes' },
-      ];
-    } else if (role === 'operator') {
-      return [
-        { label: 'Dashboard', icon: <Dashboard />, path: '/operator/dashboard' },
-        { label: 'Tasks', icon: <Assignment />, path: '/operator/tasks' },
-      ];
-    } else if (role === 'leader') {
-      return [
-        { label: 'Dashboard', icon: <Dashboard />, path: '/leader/dashboard' },
-        { label: 'Tasks', icon: <Build />, path: '/leader/maintenance-tasks' },
-        { label: 'Create Task', icon: <Assignment />, path: '/leader/maintenance-tasks/create' },
-      ];
+    // Dashboard - always visible
+    if (isAdmin) {
+      items.push({ label: 'Dashboard', icon: <Dashboard />, path: '/admin/dashboard' });
+    } else if (user.role === 'operator') {
+      items.push({ label: 'Dashboard', icon: <Dashboard />, path: '/operator/dashboard' });
+    } else if (user.role === 'leader') {
+      items.push({ label: 'Dashboard', icon: <Dashboard />, path: '/leader/dashboard' });
     } else {
-      const items: NavItem[] = [
-        { label: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
-      ];
-      if (user.departmentName?.toLowerCase() === 'production') {
-        items.push({ label: 'Products', icon: <Inventory />, path: '/products' });
-      } else if (user.departmentName?.toLowerCase() === 'maintenance') {
-        items.push({ label: 'Tasks', icon: <Build />, path: '/maintenance-tasks' });
-      }
-      return items;
+      items.push({ label: 'Dashboard', icon: <Dashboard />, path: '/dashboard' });
     }
+
+    // Users - show if can view users
+    if (isAdmin || (permissions && canView('Users'))) {
+      if (isAdmin) {
+        items.push({ label: 'Users', icon: <People />, path: '/admin/users' });
+      } else {
+        items.push({ label: 'Users', icon: <People />, path: '/admin/users' });
+      }
+    }
+
+    // Departments - show if can view departments
+    if (isAdmin || (permissions && canView('Departments'))) {
+      if (isAdmin) {
+        items.push({ label: 'Departments', icon: <Business />, path: '/admin/departments' });
+      } else {
+        items.push({ label: 'Departments', icon: <Business />, path: '/admin/departments' });
+      }
+    }
+
+    // Groups & Shifts - show if can view groups
+    if (isAdmin || (permissions && canView('Groups'))) {
+      if (isAdmin) {
+        items.push({ label: 'Groups & Shifts', icon: <Group />, path: '/admin/groups' });
+      } else {
+        items.push({ label: 'Groups & Shifts', icon: <Group />, path: '/admin/groups' });
+      }
+    }
+
+    // Products - show if can view products
+    if (isAdmin || (permissions && canView('Products'))) {
+      if (isAdmin) {
+        items.push({ label: 'Products', icon: <Inventory />, path: '/admin/products' });
+      } else {
+        items.push({ label: 'Products', icon: <Inventory />, path: '/admin/products' });
+      }
+    }
+
+    // Reports - show if can view reports
+    if (isAdmin || (permissions && canView('Reports'))) {
+      if (isAdmin) {
+        items.push({ label: 'Reports', icon: <Description />, path: '/admin/reports' });
+      } else {
+        items.push({ label: 'Reports', icon: <Description />, path: '/admin/reports' });
+      }
+    }
+
+    // Analytics - show if can view analytics
+    if (isAdmin || (permissions && canView('Analytics'))) {
+      if (isAdmin) {
+        items.push({ label: 'Analytics', icon: <Analytics />, path: '/admin/analytics' });
+      } else {
+        items.push({ label: 'Analytics', icon: <Analytics />, path: '/admin/analytics' });
+      }
+    }
+
+    // Tasks - show if can view tasks
+    if (isAdmin || (permissions && canView('Tasks'))) {
+      if (user.role === 'operator') {
+        items.push({ label: 'Tasks', icon: <Assignment />, path: '/operator/tasks' });
+      } else if (user.role === 'leader') {
+        items.push({ label: 'Tasks', icon: <Build />, path: '/leader/maintenance-tasks' });
+        if (isAdmin || (permissions && canEdit('Tasks'))) {
+          items.push({ label: 'Create Task', icon: <Assignment />, path: '/leader/maintenance-tasks/create' });
+        }
+      } else {
+        items.push({ label: 'Tasks', icon: <Build />, path: '/tasks' });
+      }
+    }
+
+    // Admin-only items
+    if (isAdmin) {
+      items.push({ label: 'Role Management', icon: <Security />, path: '/admin/roles' });
+      items.push({ label: 'Reg. Codes', icon: <VpnKey />, path: '/admin/codes' });
+    }
+
+    return items;
   };
 
   const navItems = getNavItems();

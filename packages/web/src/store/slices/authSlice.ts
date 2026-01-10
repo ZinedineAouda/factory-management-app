@@ -91,14 +91,16 @@ export const loadStoredAuth = createAsyncThunk('auth/loadStored', async (_, { re
   const user = getStoredUser();
   
   if (token && user) {
-    // Validate token with backend
+    // Validate token with backend and get fresh user data (including permissions)
     try {
       const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
-      await axios.get(`${API_BASE_URL}/auth/me`, {
+      const meResponse = await axios.get(`${API_BASE_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Token is valid
-    return { token, user };
+      // Token is valid, use fresh user data with permissions
+      const freshUser = meResponse.data;
+      saveAuth(token, freshUser);
+      return { token, user: freshUser };
     } catch (error) {
       // Token is invalid, clear it
       clearAuth();
@@ -207,6 +209,8 @@ const authSlice = createSlice({
           state.user = action.payload.user;
           state.token = action.payload.token;
           state.isAuthenticated = true;
+          // Refresh user data to get latest permissions
+          // This will be handled by refreshUser if needed
         } else {
           // No stored auth found
           state.isAuthenticated = false;

@@ -5,16 +5,39 @@ export enum UserRole {
   LEADER = 'leader',
 }
 
+export interface UserPermissions {
+  canViewUsers: boolean;
+  canEditUsers: boolean;
+  canViewDepartments: boolean;
+  canEditDepartments: boolean;
+  canViewGroups: boolean;
+  canEditGroups: boolean;
+  canViewProducts: boolean;
+  canEditProducts: boolean;
+  canViewReports: boolean;
+  canEditReports: boolean;
+  canViewTasks: boolean;
+  canEditTasks: boolean;
+  canViewAnalytics: boolean;
+  maxDataReach: 'own' | 'department' | 'group' | 'all';
+}
+
 export interface User {
   id: string;
-  email: string;
+  email?: string;
+  username?: string;
   role: UserRole;
   departmentId?: string;
   departmentName?: string;
   groupId?: string | null;
   groupName?: string | null;
   createdAt: string;
+  updatedAt?: string;
   isActive: boolean;
+  status?: string;
+  profilePhotoUrl?: string;
+  bio?: string;
+  permissions?: UserPermissions | null;
 }
 
 export interface AuthResponse {

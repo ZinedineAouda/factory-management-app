@@ -239,6 +239,18 @@ router.post('/login', async (req, res) => {
       [user.id]
     );
 
+    // Get role permissions for the user (if they exist)
+    let rolePermissions = null;
+    try {
+      rolePermissions = await dbGet(
+        'SELECT * FROM role_permissions WHERE role = ?',
+        [user.role]
+      );
+    } catch (error) {
+      // If role_permissions table doesn't exist or query fails, continue without permissions
+      console.warn(`Could not fetch permissions for role ${user.role}:`, error);
+    }
+
     res.json({
       user: {
         id: user.id,
@@ -254,6 +266,22 @@ router.post('/login', async (req, res) => {
         createdAt: user.created_at,
         updatedAt: user.updated_at,
         isActive: user.is_active,
+        permissions: rolePermissions ? {
+          canViewUsers: rolePermissions.can_view_users === 1,
+          canEditUsers: rolePermissions.can_edit_users === 1,
+          canViewDepartments: rolePermissions.can_view_departments === 1,
+          canEditDepartments: rolePermissions.can_edit_departments === 1,
+          canViewGroups: rolePermissions.can_view_groups === 1,
+          canEditGroups: rolePermissions.can_edit_groups === 1,
+          canViewProducts: rolePermissions.can_view_products === 1,
+          canEditProducts: rolePermissions.can_edit_products === 1,
+          canViewReports: rolePermissions.can_view_reports === 1,
+          canEditReports: rolePermissions.can_edit_reports === 1,
+          canViewTasks: rolePermissions.can_view_tasks === 1,
+          canEditTasks: rolePermissions.can_edit_tasks === 1,
+          canViewAnalytics: rolePermissions.can_view_analytics === 1,
+          maxDataReach: rolePermissions.max_data_reach || 'own',
+        } : null,
       },
       token,
     });
@@ -333,6 +361,18 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Get role permissions for the user (if they exist)
+    let rolePermissions = null;
+    try {
+      rolePermissions = await dbGet(
+        'SELECT * FROM role_permissions WHERE role = ?',
+        [user.role]
+      );
+    } catch (error) {
+      // If role_permissions table doesn't exist or query fails, continue without permissions
+      console.warn(`Could not fetch permissions for role ${user.role}:`, error);
+    }
+
     res.json({
       id: user.id,
       username: user.username,
@@ -348,6 +388,22 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
       createdAt: user.created_at,
       updatedAt: user.updated_at,
       isActive: user.is_active === 1,
+      permissions: rolePermissions ? {
+        canViewUsers: rolePermissions.can_view_users === 1,
+        canEditUsers: rolePermissions.can_edit_users === 1,
+        canViewDepartments: rolePermissions.can_view_departments === 1,
+        canEditDepartments: rolePermissions.can_edit_departments === 1,
+        canViewGroups: rolePermissions.can_view_groups === 1,
+        canEditGroups: rolePermissions.can_edit_groups === 1,
+        canViewProducts: rolePermissions.can_view_products === 1,
+        canEditProducts: rolePermissions.can_edit_products === 1,
+        canViewReports: rolePermissions.can_view_reports === 1,
+        canEditReports: rolePermissions.can_edit_reports === 1,
+        canViewTasks: rolePermissions.can_view_tasks === 1,
+        canEditTasks: rolePermissions.can_edit_tasks === 1,
+        canViewAnalytics: rolePermissions.can_view_analytics === 1,
+        maxDataReach: rolePermissions.max_data_reach || 'own',
+      } : null,
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to get user' });
