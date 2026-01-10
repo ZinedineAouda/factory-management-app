@@ -100,7 +100,24 @@ const ProductsPage: React.FC = () => {
       description: product.description || '',
     });
     setSelectedImage(null);
-    setImagePreview(product.image_url ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${product.image_url}` : null);
+    // Get base URL for images (backend serves static files)
+    const getImageUrl = (imagePath: string) => {
+      if (!imagePath) return null;
+      // If image path already includes full URL, return as-is
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return imagePath;
+      }
+      // Otherwise, construct URL from API base
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (apiUrl) {
+        // Remove /api suffix if present, then add image path
+        const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+        return `${baseUrl}${imagePath}`;
+      }
+      // Development fallback
+      return imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    };
+    setImagePreview(product.image_url ? getImageUrl(product.image_url) : null);
     setError(null);
   };
 
@@ -203,7 +220,18 @@ const ProductsPage: React.FC = () => {
   const getImageUrl = (imageUrl: string | null) => {
     if (!imageUrl) return null;
     if (imageUrl.startsWith('http')) return imageUrl;
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${imageUrl}`;
+    // Get base URL for images
+    const getImageBaseUrl = () => {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (apiUrl) {
+        // Remove /api suffix if present
+        return apiUrl.replace(/\/api\/?$/, '');
+      }
+      // Development fallback - use relative path
+      return '';
+    };
+    const baseUrl = getImageBaseUrl();
+    return imageUrl.startsWith('http') ? imageUrl : `${baseUrl}${imageUrl}`;
   };
 
   return (

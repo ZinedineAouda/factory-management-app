@@ -24,18 +24,87 @@ import { startDeliveryDropMonitoring } from './jobs/deliveryDropJob';
 
 dotenv.config();
 
+// Environment variable validation
+const validateEnvironment = () => {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Required in production
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.FRONTEND_URL) {
+      errors.push('❌ FRONTEND_URL is required in production');
+    }
+    if (!process.env.JWT_SECRET) {
+      errors.push('❌ JWT_SECRET is required in production');
+    }
+    if (!process.env.RAILWAY_VOLUME_PATH && !process.env.DATABASE_PATH) {
+      warnings.push('⚠️  RAILWAY_VOLUME_PATH or DATABASE_PATH not set - database may not persist');
+    }
+  }
+
+  // Warnings for missing optional vars
+  if (!process.env.JWT_SECRET) {
+    warnings.push('⚠️  JWT_SECRET not set - using default (INSECURE)');
+  }
+  if (!process.env.FRONTEND_URL && process.env.NODE_ENV !== 'development') {
+    warnings.push('⚠️  FRONTEND_URL not set - CORS may fail');
+  }
+
+  // Log warnings
+  if (warnings.length > 0) {
+    console.warn('\n⚠️  Environment Variable Warnings:');
+    warnings.forEach(w => console.warn(`   ${w}`));
+  }
+
+  // Log errors and exit if critical
+  if (errors.length > 0) {
+    console.error('\n❌ Critical Environment Variable Errors:');
+    errors.forEach(e => console.error(`   ${e}`));
+    console.error('\n💡 Please set the required environment variables and restart.');
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  }
+
+  // Success message
+  if (errors.length === 0 && warnings.length === 0) {
+    console.log('✅ Environment variables validated');
+  }
+};
+
+// Validate environment on startup
+validateEnvironment();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-const defaultOrigins = [
-  'http://localhost:3001',
-  'https://factory-management-app-web.vercel.app'
-];
+// Middleware - CORS configuration
+// IMPORTANT: Use FRONTEND_URL environment variable in production
+// Format: FRONTEND_URL=https://your-frontend.vercel.app,https://another-domain.com
+const getAllowedOrigins = (): string[] => {
+  if (process.env.FRONTEND_URL) {
+    const origins = process.env.FRONTEND_URL.split(',').map(url => url.trim());
+    console.log('🌐 CORS: Using FRONTEND_URL environment variable:', origins);
+    return origins;
+  }
+  
+  // Development defaults
+  if (process.env.NODE_ENV === 'development') {
+    const devOrigins = ['http://localhost:3001', 'http://localhost:5173'];
+    console.log('🔧 CORS: Development mode - allowing:', devOrigins);
+    return devOrigins;
+  }
+  
+  // Production fallback - log warning
+  console.warn('⚠️  WARNING: FRONTEND_URL not set in production!');
+  console.warn('⚠️  CORS may fail. Set FRONTEND_URL environment variable.');
+  console.warn('⚠️  Example: FRONTEND_URL=https://your-app.vercel.app');
+  
+  // Return empty array to be strict (will fail CORS but be obvious)
+  return [];
+};
 
-const allowedOrigins = process.env.FRONTEND_URL 
-  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-  : defaultOrigins;
+const allowedOrigins = getAllowedOrigins();
 
 app.use(cors({
   origin: (origin, callback) => {

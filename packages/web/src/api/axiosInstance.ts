@@ -32,9 +32,62 @@ export const extractErrorMessage = (error: any): string => {
  * Centralized axios instance with error normalization
  */
 const createAxiosInstance = (): AxiosInstance => {
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 
-                       (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
-
+  // Get API URL from environment variable
+  const envUrl = import.meta.env.VITE_API_URL;
+  
+  // Development mode - use proxy
+  if (import.meta.env.DEV) {
+    const API_BASE_URL = '/api';
+    console.log('🔧 Development mode: Using proxy API at', API_BASE_URL);
+    
+    const instance = axios.create({
+      baseURL: API_BASE_URL,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    // Add interceptors and return
+    return setupInterceptors(instance);
+  }
+  
+  // Production mode - MUST have VITE_API_URL set
+  if (!envUrl) {
+    const errorMsg = '❌ CRITICAL: VITE_API_URL environment variable is not set in production!';
+    console.error(errorMsg);
+    console.error('Please set VITE_API_URL in your Vercel environment variables.');
+    console.error('Example: https://your-backend.up.railway.app/api');
+    
+    // Still create instance but log error - let the app fail gracefully
+    // This prevents silent failures
+    const instance = axios.create({
+      baseURL: '/api', // Fallback to relative path (will fail but be obvious)
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    return setupInterceptors(instance);
+  }
+  
+  // Process production URL
+  let url = envUrl.trim().replace(/\/+$/, '');
+  
+  // Ensure protocol
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+  
+  // Ensure /api suffix
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  
+  const API_BASE_URL = url;
+  console.log('🌐 Production mode: Using API at', API_BASE_URL);
+  
   const instance = axios.create({
     baseURL: API_BASE_URL,
     timeout: 30000,
@@ -42,6 +95,14 @@ const createAxiosInstance = (): AxiosInstance => {
       'Content-Type': 'application/json',
     },
   });
+  
+  return setupInterceptors(instance);
+};
+
+/**
+ * Setup request/response interceptors
+ */
+const setupInterceptors = (instance: AxiosInstance): AxiosInstance => {
 
   // Request interceptor - Add auth token
   instance.interceptors.request.use(
@@ -86,7 +147,7 @@ const createAxiosInstance = (): AxiosInstance => {
       return Promise.reject(normalizedError);
     }
   );
-
+  
   return instance;
 };
 

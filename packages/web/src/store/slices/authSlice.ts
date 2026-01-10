@@ -93,7 +93,26 @@ export const loadStoredAuth = createAsyncThunk('auth/loadStored', async (_, { re
   if (token && user) {
     // Validate token with backend and get fresh user data (including permissions)
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
+      // Use the same API URL logic as axiosInstance
+      let API_BASE_URL: string;
+      if (import.meta.env.DEV) {
+        API_BASE_URL = '/api';
+      } else {
+        const envUrl = import.meta.env.VITE_API_URL;
+        if (!envUrl) {
+          console.error('❌ VITE_API_URL not set in production');
+          throw new Error('API URL not configured');
+        }
+        let url = envUrl.trim().replace(/\/+$/, '');
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = `https://${url}`;
+        }
+        if (!url.endsWith('/api')) {
+          url = `${url}/api`;
+        }
+        API_BASE_URL = url;
+      }
+      
       const meResponse = await axios.get(`${API_BASE_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -124,7 +143,25 @@ export const refreshUser = createAsyncThunk(
       }
 
       // Use /me endpoint to get current user data
-      const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
+      // Use the same API URL logic as axiosInstance
+      let API_BASE_URL: string;
+      if (import.meta.env.DEV) {
+        API_BASE_URL = '/api';
+      } else {
+        const envUrl = import.meta.env.VITE_API_URL;
+        if (!envUrl) {
+          throw new Error('VITE_API_URL not set in production');
+        }
+        let url = envUrl.trim().replace(/\/+$/, '');
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = `https://${url}`;
+        }
+        if (!url.endsWith('/api')) {
+          url = `${url}/api`;
+        }
+        API_BASE_URL = url;
+      }
+      
       const meResponse = await axios.get(`${API_BASE_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });

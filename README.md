@@ -1,6 +1,19 @@
 # Factory Management System
 
+**Status:** 🟡 BETA - Production  
+**Version:** 1.0.0
+
 A comprehensive factory management application with web dashboard and mobile app support. Manage workers, tasks, products, departments, and track production analytics in real-time.
+
+## 🎯 Key Features
+
+- **Unified Interface:** Single UI system that adapts based on user role and permissions
+- **Role-Based Access Control (RBAC):** Admin controls what each role can see and edit
+- **Department-Based Data Access:** Users only see data from their department
+- **User Approval System:** New registrations require admin approval
+- **Real-Time Analytics:** Production metrics and analytics dashboard
+- **Task Management:** Assign and track tasks across departments
+- **Product Management:** Inventory and delivery tracking
 
 ## 🚀 Quick Start
 
@@ -134,8 +147,27 @@ factory-management-app/
 
 ## 🔧 Environment Variables
 
-### Backend
-Create `backend/.env` (optional - defaults work for local development):
+### ⚠️ Production Environment Variables (REQUIRED)
+
+**See [ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md) for complete guide.**
+
+#### Frontend (Vercel) - REQUIRED
+```env
+VITE_API_URL=https://your-backend.up.railway.app/api
+```
+
+#### Backend (Railway) - REQUIRED
+```env
+FRONTEND_URL=https://your-frontend.vercel.app
+JWT_SECRET=your-secret-key-min-32-chars
+NODE_ENV=production
+RAILWAY_VOLUME_PATH=/data  # For database persistence
+```
+
+### Local Development (Optional)
+
+#### Backend
+Create `backend/.env`:
 ```env
 PORT=3000
 JWT_SECRET=your-secret-key-here
@@ -143,8 +175,8 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:3001
 ```
 
-### Web
-Create `packages/web/.env` (optional):
+#### Web
+Create `packages/web/.env`:
 ```env
 VITE_API_URL=http://localhost:3000/api
 ```
@@ -178,6 +210,12 @@ The built web files will be in `packages/web/dist/` - serve these with any stati
 ## 🚀 Deployment
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for step-by-step hosting instructions using FREE platforms (Vercel + Railway/Render).
+
+**⚠️ IMPORTANT:** After deployment, ensure all environment variables are set correctly:
+- Frontend: `VITE_API_URL` in Vercel
+- Backend: `FRONTEND_URL`, `JWT_SECRET`, `RAILWAY_VOLUME_PATH` in Railway
+
+See [ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md) for details.
 
 ## 📚 Features
 
@@ -219,6 +257,9 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for step-by-step hosting instructions using
 ## 📖 Documentation
 
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Step-by-step hosting guide (FREE)
+- **[ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md)** - Environment variables guide ⚠️ **IMPORTANT**
+- **[AUDIT_REPORT.md](./AUDIT_REPORT.md)** - Comprehensive system audit
+- **[CRITICAL_FIXES_APPLIED.md](./CRITICAL_FIXES_APPLIED.md)** - Recent critical fixes
 - **[GETTING_STARTED.md](./GETTING_STARTED.md)** - Quick 5-minute start guide
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Technical architecture details
 - **[CHANGELOG.md](./CHANGELOG.md)** - Version history

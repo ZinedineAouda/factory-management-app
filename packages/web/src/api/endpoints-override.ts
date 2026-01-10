@@ -26,8 +26,16 @@ const getApiBaseUrl = (): string => {
     return url;
   }
   
-  // Fallback (should not happen in production)
-  return 'http://localhost:3000/api';
+  // Fallback - log error in production
+  if (import.meta.env.PROD) {
+    console.error('❌ CRITICAL: VITE_API_URL not set in production!');
+    console.error('Please set VITE_API_URL in Vercel environment variables.');
+    // Return empty string to cause obvious failures rather than silent localhost calls
+    return '';
+  }
+  
+  // Development fallback
+  return '/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
