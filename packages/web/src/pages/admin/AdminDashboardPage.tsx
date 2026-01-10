@@ -371,7 +371,7 @@ const AdminDashboardPage: React.FC = () => {
             }}
           >
             <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 3 }}>
-              Task Distribution
+              Department Distribution
             </Typography>
             <ResponsiveContainer width="100%" height={200}>
               {departmentData.length > 0 ? (

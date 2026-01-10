@@ -29,7 +29,7 @@ const LeaderDashboardPage: React.FC = () => {
   return (
     <PageContainer
       title="Leader Dashboard"
-      subtitle="Manage and assign maintenance tasks to your team"
+      subtitle="View reports and manage your team"
     >
 
       {/* Quick Actions */}

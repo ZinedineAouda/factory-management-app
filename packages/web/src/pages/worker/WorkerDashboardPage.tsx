@@ -146,7 +146,7 @@ const WorkerDashboardPage: React.FC = () => {
           </Typography>
           <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400] }}>
             You haven't been assigned to a department yet. Please contact your administrator to get assigned
-            to either Production or Maintenance department to start receiving tasks.
+            to either Production or Maintenance department.
           </Typography>
         </Box>
       )}

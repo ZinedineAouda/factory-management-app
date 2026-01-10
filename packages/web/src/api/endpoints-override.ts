@@ -105,6 +105,9 @@ export const ApiEndpoints = {
   REPORTS: {
     CREATE: `${API_BASE_URL}/reports`,
     LIST: `${API_BASE_URL}/reports`,
+    DETAIL: (id: string) => `${API_BASE_URL}/reports/${id}`,
+    ADD_COMMENT: (id: string) => `${API_BASE_URL}/reports/${id}/comments`,
+    MARK_SOLVED: (id: string) => `${API_BASE_URL}/reports/${id}/solve`,
     BY_DEPARTMENT: (departmentId: string) => `${API_BASE_URL}/reports/department/${departmentId}`,
     LINK_TO_DROP: (reportId: string) => `${API_BASE_URL}/reports/${reportId}/link-to-drop`,
   },

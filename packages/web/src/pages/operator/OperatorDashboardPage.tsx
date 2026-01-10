@@ -20,10 +20,10 @@ const OperatorDashboardPage: React.FC = () => {
 
   const quickActions = [
     {
-      title: 'Create Report',
-      description: 'Submit a new production report',
+      title: 'Report Issue',
+      description: 'Report a problem or trouble you encountered',
       icon: <Description />,
-      path: '/admin/reports',
+      path: '/operator/reports/create',
       color: colors.primary[500],
     },
   ];
@@ -31,7 +31,7 @@ const OperatorDashboardPage: React.FC = () => {
   return (
     <PageContainer
       title="Operator Dashboard"
-      subtitle="Create reports and manage your operator tasks"
+      subtitle="Report issues and troubles encountered in the factory"
     >
       {/* Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

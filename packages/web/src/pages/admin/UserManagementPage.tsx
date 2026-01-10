@@ -55,11 +55,7 @@ interface Group {
 }
 
 interface WorkerStatistics {
-  totalTasks: number;
-  completedTasks: number;
-  inProgressTasks: number;
-  pendingTasks: number;
-  cancelledTasks: number;
+  totalReports: number;
   averageProgress: number;
   completionRate: number;
 }
@@ -962,49 +958,9 @@ const UserManagementPage: React.FC = () => {
                 <Grid item xs={6} sm={4} md={2}>
                   <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colors.neutral[950], borderRadius: 2 }}>
                     <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: colors.neutral[100] }}>
-                      {userStats.totalTasks}
+                      {userStats.totalReports || 0}
                     </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>Total Tasks</Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={4} md={2}>
-                  <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colors.neutral[950], borderRadius: 2 }}>
-                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: colors.success[500] }}>
-                      {userStats.completedTasks}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>Completed</Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={4} md={2}>
-                  <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colors.neutral[950], borderRadius: 2 }}>
-                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: colors.info[500] }}>
-                      {userStats.inProgressTasks}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>In Progress</Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={4} md={2}>
-                  <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colors.neutral[950], borderRadius: 2 }}>
-                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: colors.warning[500] }}>
-                      {userStats.pendingTasks}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>Pending</Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={4} md={2}>
-                  <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colors.neutral[950], borderRadius: 2 }}>
-                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: colors.primary[400] }}>
-                      {userStats.completionRate}%
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>Completion Rate</Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={4} md={2}>
-                  <Box sx={{ textAlign: 'center', p: 2, backgroundColor: colors.neutral[950], borderRadius: 2 }}>
-                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: colors.neutral[100] }}>
-                      {userStats.averageProgress}%
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>Avg Progress</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>Total Reports</Typography>
                   </Box>
                 </Grid>
               </Grid>

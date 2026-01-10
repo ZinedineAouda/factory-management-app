@@ -53,7 +53,7 @@ const LoginPage: React.FC = () => {
     if (userRole === UserRole.ADMIN || userRole === 'admin') return '/admin/dashboard';
     if (userRole === UserRole.OPERATOR || userRole === 'operator') return '/operator/dashboard';
     if (userRole === UserRole.LEADER || userRole === 'leader') return '/leader/dashboard';
-    if (userRole === UserRole.WORKER || userRole === 'worker') return '/tasks';
+    if (userRole === UserRole.WORKER || userRole === 'worker') return '/dashboard';
     
     return '/';
   }, [user?.role]);
@@ -205,7 +205,7 @@ const LoginPage: React.FC = () => {
             }}
           >
             Streamline your manufacturing operations with our modern enterprise platform.
-            Track tasks, manage departments, and boost productivity.
+            Manage departments, track issues, and boost productivity.
           </Typography>
 
           <Box
@@ -218,7 +218,7 @@ const LoginPage: React.FC = () => {
           >
             {[
               { value: '99.9%', label: 'Uptime' },
-              { value: '50k+', label: 'Tasks' },
+              { value: '50k+', label: 'Reports' },
               { value: '24/7', label: 'Support' },
             ].map((stat) => (
               <Box key={stat.label} sx={{ textAlign: 'center' }}>

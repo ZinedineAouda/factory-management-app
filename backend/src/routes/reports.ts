@@ -204,10 +204,12 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     if (userRole === 'admin') {
       // Admin sees all reports
       reports = await dbAll(
-        `SELECT r.*, u.username as operator_username, d.name as department_name
+        `SELECT r.*, u.username as operator_username, d.name as department_name,
+                solver.username as solved_by_username
          FROM reports r 
          JOIN users u ON r.operator_id = u.id 
          JOIN departments d ON r.department_id = d.id
+         LEFT JOIN users solver ON r.solved_by = solver.id
          ORDER BY r.created_at DESC`
       );
     } else if (userRole === 'leader') {
@@ -215,10 +217,12 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
       if (userData && userData.department_id) {
         reports = await dbAll(
-          `SELECT r.*, u.username as operator_username, d.name as department_name
+          `SELECT r.*, u.username as operator_username, d.name as department_name,
+                  solver.username as solved_by_username
            FROM reports r 
            JOIN users u ON r.operator_id = u.id 
            JOIN departments d ON r.department_id = d.id
+           LEFT JOIN users solver ON r.solved_by = solver.id
            WHERE r.department_id = ?
            ORDER BY r.created_at DESC`,
           [userData.department_id]
@@ -227,28 +231,229 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         reports = [];
       }
     } else {
-      // Operators see their own reports
-      reports = await dbAll(
-        `SELECT r.*, u.username as operator_username, d.name as department_name
-         FROM reports r 
-         JOIN users u ON r.operator_id = u.id 
-         JOIN departments d ON r.department_id = d.id
-         WHERE r.operator_id = ?
-         ORDER BY r.created_at DESC`,
-        [userId]
-      );
+      // Operators see their own reports, workers see reports in their department
+      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
+      if (userRole === 'operator') {
+        reports = await dbAll(
+          `SELECT r.*, u.username as operator_username, d.name as department_name,
+                  solver.username as solved_by_username
+           FROM reports r 
+           JOIN users u ON r.operator_id = u.id 
+           JOIN departments d ON r.department_id = d.id
+           LEFT JOIN users solver ON r.solved_by = solver.id
+           WHERE r.operator_id = ?
+           ORDER BY r.created_at DESC`,
+          [userId]
+        );
+      } else if (userData && userData.department_id) {
+        // Workers can view reports in their department
+        reports = await dbAll(
+          `SELECT r.*, u.username as operator_username, d.name as department_name,
+                  solver.username as solved_by_username
+           FROM reports r 
+           JOIN users u ON r.operator_id = u.id 
+           JOIN departments d ON r.department_id = d.id
+           LEFT JOIN users solver ON r.solved_by = solver.id
+           WHERE r.department_id = ?
+           ORDER BY r.created_at DESC`,
+          [userData.department_id]
+        );
+      } else {
+        reports = [];
+      }
     }
 
-    // Get attachments for each report
+    // Get attachments and solved info for each report
     for (const report of reports) {
       const attachments = await dbAll('SELECT * FROM report_attachments WHERE report_id = ?', [report.id]);
       (report as any).attachments = attachments;
+      
+      // Get solved by username if solved
+      if (report.is_solved && report.solved_by) {
+        const solvedByUser = await dbGet('SELECT username FROM users WHERE id = ?', [report.solved_by]);
+        (report as any).solved_by_username = solvedByUser?.username || null;
+      }
     }
 
     res.json(reports);
   } catch (error: any) {
     console.error('Get all reports error:', error);
     res.status(500).json({ error: 'Failed to fetch reports' });
+  }
+});
+
+// Get report details with comments
+router.get('/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    // Get report
+    const report = await dbGet(
+      `SELECT r.*, u.username as operator_username, d.name as department_name
+       FROM reports r 
+       JOIN users u ON r.operator_id = u.id 
+       JOIN departments d ON r.department_id = d.id
+       WHERE r.id = ?`,
+      [id]
+    );
+
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    // Check permissions
+    if (userRole === 'admin') {
+      // Admin can see all
+    } else if (userRole === 'leader') {
+      // Leader can see reports for their department
+      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
+      if (!userData || userData.department_id !== report.department_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else if (userRole === 'operator') {
+      // Operator can see their own reports
+      if (report.operator_id !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else {
+      // Workers can view reports (read-only)
+      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
+      if (!userData || userData.department_id !== report.department_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
+    // Get attachments
+    const attachments = await dbAll('SELECT * FROM report_attachments WHERE report_id = ?', [id]);
+    (report as any).attachments = attachments;
+
+    // Get solved by username if solved
+    if (report.is_solved && report.solved_by) {
+      const solvedByUser = await dbGet('SELECT username FROM users WHERE id = ?', [report.solved_by]);
+      (report as any).solved_by_username = solvedByUser?.username || null;
+    }
+
+    // Get comments
+    const comments = await dbAll(
+      `SELECT c.*, u.username as user_username
+       FROM report_comments c
+       JOIN users u ON c.user_id = u.id
+       WHERE c.report_id = ?
+       ORDER BY c.created_at ASC`,
+      [id]
+    );
+    (report as any).comments = comments;
+
+    res.json(report);
+  } catch (error: any) {
+    console.error('Get report details error:', error);
+    res.status(500).json({ error: 'Failed to fetch report details' });
+  }
+});
+
+// Add comment to report (any authenticated user who can view the report)
+router.post('/:id/comments', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { comment } = req.body;
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({ error: 'Comment is required' });
+    }
+
+    // Get report to check permissions
+    const report = await dbGet('SELECT * FROM reports WHERE id = ?', [id]);
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    // Check permissions (same as viewing)
+    if (userRole === 'admin') {
+      // Admin can comment
+    } else if (userRole === 'leader') {
+      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
+      if (!userData || userData.department_id !== report.department_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else if (userRole === 'operator') {
+      if (report.operator_id !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else {
+      // Workers can comment on reports in their department
+      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
+      if (!userData || userData.department_id !== report.department_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
+    // Create comment
+    const commentId = uuidv4();
+    await dbRun(
+      'INSERT INTO report_comments (id, report_id, user_id, comment) VALUES (?, ?, ?, ?)',
+      [commentId, id, userId, comment.trim()]
+    );
+
+    // Get comment with username
+    const newComment = await dbGet(
+      `SELECT c.*, u.username as user_username
+       FROM report_comments c
+       JOIN users u ON c.user_id = u.id
+       WHERE c.id = ?`,
+      [commentId]
+    );
+
+    res.json(newComment);
+  } catch (error: any) {
+    console.error('Add comment error:', error);
+    res.status(500).json({ error: 'Failed to add comment' });
+  }
+});
+
+// Mark report as solved (Operators and Admins only)
+router.put('/:id/solve', authenticate, requireRole(['operator', 'admin']), async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    // Get report
+    const report = await dbGet('SELECT * FROM reports WHERE id = ?', [id]);
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    // Check permissions: Operator can only solve their own reports, Admin can solve any
+    if (userRole === 'operator' && report.operator_id !== userId) {
+      return res.status(403).json({ error: 'You can only mark your own reports as solved' });
+    }
+
+    // Mark as solved
+    await dbRun(
+      'UPDATE reports SET is_solved = 1, solved_at = CURRENT_TIMESTAMP, solved_by = ? WHERE id = ?',
+      [userId, id]
+    );
+
+    // Get updated report with solved_by username
+    const updatedReport = await dbGet(
+      `SELECT r.*, u.username as operator_username, d.name as department_name, 
+              solver.username as solved_by_username
+       FROM reports r 
+       JOIN users u ON r.operator_id = u.id 
+       JOIN departments d ON r.department_id = d.id
+       LEFT JOIN users solver ON r.solved_by = solver.id
+       WHERE r.id = ?`,
+      [id]
+    );
+
+    res.json(updatedReport);
+  } catch (error: any) {
+    console.error('Mark report as solved error:', error);
+    res.status(500).json({ error: 'Failed to mark report as solved' });
   }
 });
 

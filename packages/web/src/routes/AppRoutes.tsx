@@ -9,6 +9,7 @@ import RegisterPage from '../pages/auth/RegisterPage';
 import WorkerDashboardPage from '../pages/worker/WorkerDashboardPage';
 import ProfilePage from '../pages/worker/ProfilePage';
 import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage';
+import ReportCreatePage from '../pages/operator/ReportCreatePage';
 import LeaderDashboardPage from '../pages/leader/LeaderDashboardPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import CodeGenerationPage from '../pages/admin/CodeGenerationPage';
@@ -16,6 +17,7 @@ import DepartmentManagementPage from '../pages/admin/DepartmentManagementPage';
 import UserManagementPage from '../pages/admin/UserManagementPage';
 import AnalyticsPage from '../pages/admin/AnalyticsPage';
 import ReportsPage from '../pages/admin/ReportsPage';
+import ReportDetailPage from '../pages/admin/ReportDetailPage';
 import ProductsPage from '../pages/admin/ProductsPage';
 import GroupsAndShiftsPage from '../pages/admin/GroupsAndShiftsPage';
 import RoleManagementPage from '../pages/admin/RoleManagementPage';
@@ -122,6 +124,14 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/operator/reports/create"
+        element={
+          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
+            <ReportCreatePage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Leader Routes */}
       <Route
@@ -179,6 +189,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={{ view: 'Reports' }}>
             <ReportsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reports/:id"
+        element={
+          <ProtectedRoute requiredPermission={{ view: 'Reports' }}>
+            <ReportDetailPage />
           </ProtectedRoute>
         }
       />

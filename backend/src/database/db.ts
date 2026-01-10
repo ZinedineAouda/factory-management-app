@@ -321,9 +321,31 @@ export const initDatabase = async () => {
       operator_id TEXT NOT NULL,
       message TEXT NOT NULL,
       task_id TEXT,
+      is_solved INTEGER DEFAULT 0,
+      solved_at DATETIME,
+      solved_by TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
-      FOREIGN KEY (operator_id) REFERENCES users(id)
+      FOREIGN KEY (operator_id) REFERENCES users(id),
+      FOREIGN KEY (solved_by) REFERENCES users(id)
+    )
+  `);
+
+  // Add is_solved, solved_at, solved_by columns if they don't exist
+  await dbRun(`ALTER TABLE reports ADD COLUMN is_solved INTEGER DEFAULT 0`).catch(() => {});
+  await dbRun(`ALTER TABLE reports ADD COLUMN solved_at DATETIME`).catch(() => {});
+  await dbRun(`ALTER TABLE reports ADD COLUMN solved_by TEXT`).catch(() => {});
+
+  // Report comments table
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS report_comments (
+      id TEXT PRIMARY KEY,
+      report_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      comment TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
 
