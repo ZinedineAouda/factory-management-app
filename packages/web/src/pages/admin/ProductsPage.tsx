@@ -29,6 +29,7 @@ import {
   Refresh,
   CloudUpload,
   Image as ImageIcon,
+  ShoppingCart,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { EmptyState } from '../../components/ui';
@@ -37,6 +38,7 @@ import axios from 'axios';
 import { ApiEndpoints } from '../../api/endpoints-override';
 import { RootState } from '../../store';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useNavigate } from 'react-router-dom';
 
 interface Product {
   id: string;
@@ -48,6 +50,7 @@ interface Product {
 }
 
 const ProductsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { token } = useSelector((state: RootState) => state.auth);
   const { canView, canEdit, isAdmin } = usePermissions();
   const [products, setProducts] = useState<Product[]>([]);
@@ -57,6 +60,8 @@ const ProductsPage: React.FC = () => {
   // Check if user can view products
   const canViewProducts = isAdmin || canView('Products');
   const canEditProducts = isAdmin || canEdit('Products');
+  // Users with can_view_products can enter delivery amounts
+  const canEnterDelivery = canViewProducts;
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [deleteProductDialogOpen, setDeleteProductDialogOpen] = useState(false);
@@ -253,6 +258,23 @@ const ProductsPage: React.FC = () => {
           <Button variant="outlined" startIcon={<Refresh />} onClick={fetchProducts}>
             Refresh
           </Button>
+          {canEnterDelivery && (
+            <Button 
+              variant="outlined" 
+              startIcon={<ShoppingCart />} 
+              onClick={() => navigate('/products/delivery')}
+              sx={{
+                borderColor: colors.success[500],
+                color: colors.success[500],
+                '&:hover': {
+                  borderColor: colors.success[600],
+                  backgroundColor: alpha(colors.success[500], 0.1),
+                },
+              }}
+            >
+              Enter Delivery
+            </Button>
+          )}
           {canEditProducts && (
             <Button variant="contained" startIcon={<Add />} onClick={handleOpenProductDialog}>
               Create Product
