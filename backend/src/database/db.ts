@@ -5,39 +5,69 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
 // Use persistent storage path for production (Railway uses /data, Vercel uses /tmp)
-// For local development, use project directory
+// IMPORTANT: Always check for existing database files first to preserve data
 const getDatabasePath = (): string => {
-  // Check for custom database path in environment variable
+  // Check for custom database path in environment variable (highest priority)
   if (process.env.DATABASE_PATH) {
-    return process.env.DATABASE_PATH;
+    const customPath = process.env.DATABASE_PATH;
+    console.log(`📁 Using custom database path from DATABASE_PATH: ${customPath}`);
+    return customPath;
   }
 
+  // List of possible database locations (in order of preference)
+  const possiblePaths = [
+    // 1. Original project directory (check first to preserve existing data)
+    path.join(__dirname, '../../factory_management.db'),
+    // 2. Railway volume path
+    process.env.RAILWAY_VOLUME_PATH ? path.join(process.env.RAILWAY_VOLUME_PATH, 'factory_management.db') : null,
+    // 3. /data directory (persistent storage)
+    '/data/factory_management.db',
+  ].filter((p): p is string => p !== null);
+
+  // Check if any existing database file exists
+  for (const dbPath of possiblePaths) {
+    if (fs.existsSync(dbPath)) {
+      console.log(`📁 Found existing database file: ${dbPath}`);
+      console.log(`✅ Using existing database to preserve your data`);
+      return dbPath;
+    }
+  }
+
+  // No existing database found - use the best available location
   // Railway persistent storage (recommended for production)
   if (process.env.RAILWAY_VOLUME_PATH) {
     const railwayPath = path.join(process.env.RAILWAY_VOLUME_PATH, 'factory_management.db');
-    // Ensure directory exists
     const dir = path.dirname(railwayPath);
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`📁 Created Railway volume directory: ${dir}`);
+      } catch (error: any) {
+        console.warn(`⚠️ Could not create Railway volume directory: ${error.message}`);
+      }
     }
+    console.log(`📁 Using Railway volume path: ${railwayPath}`);
     return railwayPath;
   }
 
   // Try /data directory (common persistent storage location)
   const dataPath = '/data/factory_management.db';
-  if (fs.existsSync('/data') || process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production') {
     try {
       if (!fs.existsSync('/data')) {
         fs.mkdirSync('/data', { recursive: true });
+        console.log(`📁 Created /data directory`);
       }
+      console.log(`📁 Using /data directory: ${dataPath}`);
       return dataPath;
-    } catch (error) {
-      console.warn('⚠️ Could not create /data directory, using fallback path');
+    } catch (error: any) {
+      console.warn(`⚠️ Could not create /data directory: ${error.message}`);
     }
   }
 
   // Fallback to project directory (for local development)
   const fallbackPath = path.join(__dirname, '../../factory_management.db');
+  console.log(`📁 Using fallback path (project directory): ${fallbackPath}`);
   return fallbackPath;
 };
 
@@ -619,16 +649,27 @@ export const cleanupUsersExceptAdmin = async () => {
 
 // Ensure admin account exists (called after any cleanup/reset)
 // This function ALWAYS preserves admin accounts and creates one if missing
+// IMPORTANT: Never deletes or overwrites existing admin accounts
 export const ensureAdminAccount = async () => {
   try {
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin1234';
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@factory.com';
     
-    const adminExists = await dbGet('SELECT id, status, is_active FROM users WHERE username = ? OR role = ?', [adminUsername, 'admin']);
+    // Check for admin by username first (more specific)
+    let adminExists = await dbGet('SELECT id, username, status, is_active FROM users WHERE username = ?', [adminUsername]);
+    
+    // If not found by username, check by role (but only if no admin exists at all)
+    if (!adminExists) {
+      const anyAdmin = await dbGet('SELECT id, username, status, is_active FROM users WHERE role = ? LIMIT 1', ['admin']);
+      if (anyAdmin) {
+        console.log(`🔒 Found existing admin account (username: ${anyAdmin.username || 'unknown'}) - preserving it`);
+        adminExists = anyAdmin;
+      }
+    }
     
     if (!adminExists) {
-      console.log(`🔐 Creating admin account (username: ${adminUsername})...`);
+      console.log(`🔐 No admin account found - creating new admin account (username: ${adminUsername})...`);
       const adminId = uuidv4();
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
       
@@ -638,14 +679,16 @@ export const ensureAdminAccount = async () => {
       );
       console.log(`✅ Admin account created successfully (username: ${adminUsername})`);
     } else {
-      // Ensure admin is active
+      // Admin exists - ensure it's active but NEVER modify credentials or delete
       const adminUser = await dbGet('SELECT id, status, is_active FROM users WHERE id = ?', [adminExists.id]);
       if (adminUser && (adminUser.status !== 'active' || adminUser.is_active !== 1)) {
         await dbRun(
           'UPDATE users SET status = ?, is_active = ? WHERE id = ?',
           ['active', 1, adminUser.id]
         );
-        console.log('✅ Admin account status updated to active');
+        console.log(`✅ Admin account status updated to active (preserved existing account: ${adminExists.username || adminExists.id})`);
+      } else {
+        console.log(`✅ Admin account already exists and is active (username: ${adminExists.username || 'unknown'})`);
       }
     }
   } catch (error: any) {
