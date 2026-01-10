@@ -111,6 +111,11 @@ const ProductsPage: React.FC = () => {
   };
 
   const handleOpenProductDialog = () => {
+    // Check permissions before opening dialog
+    if (!canEditProducts) {
+      setError('You do not have permission to create products. Only users with edit permissions can create products.');
+      return;
+    }
     setProductDialogOpen(true);
     setEditingProduct(null);
     setProductFormData({
@@ -381,11 +386,11 @@ const ProductsPage: React.FC = () => {
           <EmptyState
             icon={<Inventory />}
             title="No products yet"
-            description="Create your first product to start tracking production."
-            action={{
+            description={canEditProducts ? "Create your first product to start tracking production." : "No products available yet."}
+            action={canEditProducts ? {
               label: 'Create Product',
               onClick: handleOpenProductDialog,
-            }}
+            } : undefined}
           />
         </Box>
       ) : (
@@ -515,7 +520,8 @@ const ProductsPage: React.FC = () => {
         </Grid>
       )}
 
-      {/* Create/Edit Dialog */}
+      {/* Create/Edit Dialog - Only accessible to users with edit permissions */}
+      {canEditProducts && (
       <Dialog open={productDialogOpen} onClose={handleCloseProductDialog} maxWidth="sm" fullWidth>
         <DialogTitle>{editingProduct ? 'Edit Product' : 'Create Product'}</DialogTitle>
         <DialogContent>
@@ -599,6 +605,7 @@ const ProductsPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      )}
 
       {/* Delete Dialog */}
       <Dialog open={deleteProductDialogOpen} onClose={handleDeleteProductCancel}>

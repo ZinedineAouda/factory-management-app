@@ -41,8 +41,10 @@ const upload = multer({
 // List all products (Users with can_view_products permission)
 router.get('/', authenticate, requirePermission('can_view_products'), async (req: AuthRequest, res) => {
   try {
+    // Return ALL products - users with can_view_products can see all products regardless of who created them
     const products = await dbAll('SELECT * FROM products ORDER BY created_at DESC');
-    res.json(products);
+    console.log(`[PRODUCTS] Returning ${products.length} products for user ${req.user!.id} with role ${req.user!.role}`);
+    res.json(products || []);
   } catch (error: any) {
     console.error('List products error:', error);
     res.status(500).json({ error: 'Failed to fetch products' });

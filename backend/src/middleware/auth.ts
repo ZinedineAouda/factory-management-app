@@ -65,19 +65,24 @@ export const requirePermission = (permissionField: string) => {
     }
 
     try {
+      // Normalize role to lowercase for database lookup
+      const normalizedRole = String(req.user.role || '').toLowerCase().trim();
+      
       // Get role permissions from database
       const rolePermissions = await dbGet(
-        'SELECT * FROM role_permissions WHERE role = ?',
-        [req.user.role]
+        'SELECT * FROM role_permissions WHERE LOWER(role) = ?',
+        [normalizedRole]
       );
 
       if (!rolePermissions) {
-        console.warn(`No permissions found for role: ${req.user.role}`);
+        console.warn(`[PERMISSION CHECK] No permissions found for role: ${req.user.role} (normalized: ${normalizedRole})`);
         return res.status(403).json({ error: 'Insufficient permissions' });
       }
 
       // Check if the specific permission is enabled
       const hasPermission = (rolePermissions as any)[permissionField] === 1;
+      
+      console.log(`[PERMISSION CHECK] Role: ${req.user.role}, Permission: ${permissionField}, HasPermission: ${hasPermission}`);
       
       if (!hasPermission) {
         return res.status(403).json({ error: 'Insufficient permissions' });
