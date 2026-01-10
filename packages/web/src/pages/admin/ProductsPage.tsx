@@ -30,6 +30,7 @@ import {
   CloudUpload,
   Image as ImageIcon,
   ShoppingCart,
+  CheckCircle,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { EmptyState } from '../../components/ui';
@@ -72,6 +73,14 @@ const ProductsPage: React.FC = () => {
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
+  const [selectedProductForDelivery, setSelectedProductForDelivery] = useState<Product | null>(null);
+  const [deliveryFormData, setDeliveryFormData] = useState({
+    amount: '',
+    deliveryDate: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+  const [submittingDelivery, setSubmittingDelivery] = useState(false);
 
   useEffect(() => {
     if (!canViewProducts) {
@@ -229,6 +238,64 @@ const ProductsPage: React.FC = () => {
       setError(errorMessage);
       setDeleteProductDialogOpen(false);
       setProductToDelete(null);
+    }
+  };
+
+  const handleOpenDeliveryDialog = (product: Product) => {
+    setSelectedProductForDelivery(product);
+    setDeliveryFormData({
+      amount: '',
+      deliveryDate: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
+    setDeliveryDialogOpen(true);
+    setError(null);
+  };
+
+  const handleCloseDeliveryDialog = () => {
+    setDeliveryDialogOpen(false);
+    setSelectedProductForDelivery(null);
+    setDeliveryFormData({
+      amount: '',
+      deliveryDate: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
+    setError(null);
+  };
+
+  const handleSubmitDelivery = async () => {
+    if (!selectedProductForDelivery) return;
+
+    const amountNum = parseFloat(deliveryFormData.amount);
+    if (!deliveryFormData.amount || isNaN(amountNum) || amountNum <= 0) {
+      setError('Please enter a valid positive amount');
+      return;
+    }
+
+    try {
+      setSubmittingDelivery(true);
+      setError(null);
+
+      await axios.post(
+        ApiEndpoints.PRODUCT_DELIVERIES.CREATE,
+        {
+          productId: selectedProductForDelivery.id,
+          amount: amountNum,
+          deliveryDate: deliveryFormData.deliveryDate || new Date().toISOString().split('T')[0],
+          notes: deliveryFormData.notes.trim() || null,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      handleCloseDeliveryDialog();
+      setError(null);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error || 'Failed to enter delivery amount';
+      setError(errorMessage);
+    } finally {
+      setSubmittingDelivery(false);
     }
   };
 
@@ -396,28 +463,41 @@ const ProductsPage: React.FC = () => {
                       }}
                     />
                   </CardContent>
-                  {canEditProducts && (
-                    <CardActions sx={{ p: 1.5, pt: 0, gap: 0.5 }}>
-                      <Tooltip title="Edit">
+                  <CardActions sx={{ p: 1.5, pt: 0, gap: 0.5, flexWrap: 'wrap' }}>
+                    {canEnterDelivery && (
+                      <Tooltip title={canEdit('Products') ? 'Declare Delivery' : 'Enter Delivery Amount'}>
                         <IconButton
                           size="small"
-                          onClick={() => handleEditProduct(product)}
-                          sx={{ color: colors.primary[400] }}
+                          onClick={() => handleOpenDeliveryDialog(product)}
+                          sx={{ color: colors.success[500] }}
                         >
-                          <Edit sx={{ fontSize: 18 }} />
+                          <ShoppingCart sx={{ fontSize: 18 }} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeleteProductClick(product)}
-                          sx={{ color: colors.error[500] }}
-                        >
-                          <Delete sx={{ fontSize: 18 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </CardActions>
-                  )}
+                    )}
+                    {canEditProducts && (
+                      <>
+                        <Tooltip title="Edit">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEditProduct(product)}
+                            sx={{ color: colors.primary[400] }}
+                          >
+                            <Edit sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteProductClick(product)}
+                            sx={{ color: colors.error[500] }}
+                          >
+                            <Delete sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
+                  </CardActions>
                 </Card>
               </Grid>
             );
@@ -527,6 +607,81 @@ const ProductsPage: React.FC = () => {
           </Button>
           <Button onClick={handleDeleteProductConfirm} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delivery Dialog */}
+      <Dialog open={deliveryDialogOpen} onClose={handleCloseDeliveryDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {canEdit('Products') ? 'Declare Delivery' : 'Enter Delivery Amount'} - {selectedProductForDelivery?.name}
+        </DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mb: 2 }}>
+            {canEdit('Products')
+              ? 'Declare the amount of products delivered'
+              : 'Enter the amount of products delivered for analytics tracking'}
+          </Typography>
+          <TextField
+            fullWidth
+            label="Delivery Amount"
+            type="number"
+            value={deliveryFormData.amount}
+            onChange={(e) => setDeliveryFormData({ ...deliveryFormData, amount: e.target.value })}
+            required
+            disabled={submittingDelivery}
+            inputProps={{ min: 0, step: 1 }}
+            margin="normal"
+            helperText="Enter the number of products delivered"
+            autoFocus
+          />
+          <TextField
+            fullWidth
+            label="Delivery Date"
+            type="date"
+            value={deliveryFormData.deliveryDate}
+            onChange={(e) => setDeliveryFormData({ ...deliveryFormData, deliveryDate: e.target.value })}
+            required
+            disabled={submittingDelivery}
+            margin="normal"
+            InputLabelProps={{
+              shrink: true,
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Notes (Optional)"
+            multiline
+            rows={3}
+            value={deliveryFormData.notes}
+            onChange={(e) => setDeliveryFormData({ ...deliveryFormData, notes: e.target.value })}
+            disabled={submittingDelivery}
+            margin="normal"
+            placeholder="Add any additional notes about this delivery..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeliveryDialog} variant="outlined" disabled={submittingDelivery}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmitDelivery}
+            variant="contained"
+            disabled={submittingDelivery}
+            startIcon={submittingDelivery ? <CircularProgress size={16} /> : <CheckCircle />}
+            sx={{
+              backgroundColor: colors.success[500],
+              '&:hover': {
+                backgroundColor: colors.success[600],
+              },
+            }}
+          >
+            {submittingDelivery ? 'Submitting...' : canEdit('Products') ? 'Declare Delivery' : 'Enter Amount'}
           </Button>
         </DialogActions>
       </Dialog>
