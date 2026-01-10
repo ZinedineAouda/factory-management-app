@@ -111,10 +111,14 @@ initDatabase().then(() => {
   });
 
   // Clear all users endpoint (Admin only - for development/testing)
+  // NOTE: Admin accounts are ALWAYS preserved
   app.post('/api/admin/clear-all-users', async (req, res) => {
     try {
       await clearAllUsers();
-      res.json({ message: 'All users have been cleared from the database. Admin account will be recreated on next restart.' });
+      res.json({ 
+        message: 'All non-admin users have been cleared from the database. Admin accounts have been preserved.',
+        note: 'Admin accounts are never deleted for safety.'
+      });
     } catch (error: any) {
       console.error('Error clearing users:', error);
       res.status(500).json({ error: 'Failed to clear users', details: error.message });

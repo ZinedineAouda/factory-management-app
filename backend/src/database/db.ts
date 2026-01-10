@@ -1,14 +1,67 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
-const dbPath = path.join(__dirname, '../../factory_management.db');
+// Use persistent storage path for production (Railway uses /data, Vercel uses /tmp)
+// For local development, use project directory
+const getDatabasePath = (): string => {
+  // Check for custom database path in environment variable
+  if (process.env.DATABASE_PATH) {
+    return process.env.DATABASE_PATH;
+  }
+
+  // Railway persistent storage (recommended for production)
+  if (process.env.RAILWAY_VOLUME_PATH) {
+    const railwayPath = path.join(process.env.RAILWAY_VOLUME_PATH, 'factory_management.db');
+    // Ensure directory exists
+    const dir = path.dirname(railwayPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    return railwayPath;
+  }
+
+  // Try /data directory (common persistent storage location)
+  const dataPath = '/data/factory_management.db';
+  if (fs.existsSync('/data') || process.env.NODE_ENV === 'production') {
+    try {
+      if (!fs.existsSync('/data')) {
+        fs.mkdirSync('/data', { recursive: true });
+      }
+      return dataPath;
+    } catch (error) {
+      console.warn('⚠️ Could not create /data directory, using fallback path');
+    }
+  }
+
+  // Fallback to project directory (for local development)
+  const fallbackPath = path.join(__dirname, '../../factory_management.db');
+  return fallbackPath;
+};
+
+const dbPath = getDatabasePath();
+console.log(`📁 Database path: ${dbPath}`);
+
+// Ensure database directory exists
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  try {
+    fs.mkdirSync(dbDir, { recursive: true });
+    console.log(`✅ Created database directory: ${dbDir}`);
+  } catch (error: any) {
+    console.error(`❌ Failed to create database directory: ${error.message}`);
+  }
+}
+
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('❌ Database connection error:', err);
+    console.error(`Database path attempted: ${dbPath}`);
   } else {
     console.log('✅ Database connected successfully');
+    console.log(`📊 Database file: ${dbPath}`);
   }
 });
 
@@ -274,14 +327,16 @@ export const initDatabase = async () => {
   `);
 
   // Analytics cache table
-  // Check if table exists and has correct schema, recreate if needed
+  // Check if table exists and has correct schema, migrate if needed (don't drop - cache can be regenerated)
   try {
     const tableInfo = await dbAll(`PRAGMA table_info(analytics_cache)`);
     const hasMetricType = tableInfo.some((col: any) => col.name === 'metric_type');
     
     if (tableInfo.length > 0 && !hasMetricType) {
-      // Table exists but has wrong schema - drop and recreate (cache data can be regenerated)
-      await dbRun(`DROP TABLE analytics_cache`);
+      // Table exists but has wrong schema - cache data can be regenerated, so it's safe to recreate
+      // But only drop if absolutely necessary (cache is temporary data anyway)
+      console.log('⚠️ Analytics cache table schema outdated - will be recreated (cache data will be regenerated)');
+      await dbRun(`DROP TABLE IF EXISTS analytics_cache`).catch(() => {});
     }
   } catch (error) {
     // Table doesn't exist, will be created below
@@ -349,17 +404,12 @@ export const initDatabase = async () => {
     console.log('✅ Created default Production department');
   }
 
-  // Create default admin user if it doesn't exist (check by username)
+  // Ensure admin account exists (using environment variables if available)
+  await ensureAdminAccount();
+  
+  // Also check for legacy admin account and ensure it's active
   const adminExists = await dbGet('SELECT id FROM users WHERE username = ?', ['admin']);
-  if (!adminExists) {
-    const adminId = uuidv4();
-    const hashedPassword = await bcrypt.hash('admin1234', 10);
-    await dbRun(
-      'INSERT INTO users (id, username, password_hash, role, is_active, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [adminId, 'admin', hashedPassword, 'admin', 1, 'active']
-    );
-    console.log('✅ Created default admin user (username: admin, password: admin1234)');
-  } else {
+  if (adminExists) {
     // Ensure existing admin user has status='active' and is_active=1
     const adminUser = await dbGet('SELECT id, status, is_active FROM users WHERE username = ?', ['admin']);
     if (adminUser) {
@@ -387,6 +437,9 @@ export const initDatabase = async () => {
     }
     console.log('✅ Admin user already exists');
   }
+  
+  // Final check: Ensure admin account exists (creates if missing)
+  await ensureAdminAccount();
 
   // User notification preferences table
   await dbRun(`
@@ -564,33 +617,96 @@ export const cleanupUsersExceptAdmin = async () => {
   }
 };
 
-// Clear ALL users from the database
+// Ensure admin account exists (called after any cleanup/reset)
+// This function ALWAYS preserves admin accounts and creates one if missing
+export const ensureAdminAccount = async () => {
+  try {
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin1234';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@factory.com';
+    
+    const adminExists = await dbGet('SELECT id, status, is_active FROM users WHERE username = ? OR role = ?', [adminUsername, 'admin']);
+    
+    if (!adminExists) {
+      console.log(`🔐 Creating admin account (username: ${adminUsername})...`);
+      const adminId = uuidv4();
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      
+      await dbRun(
+        'INSERT INTO users (id, username, email, password_hash, role, is_active, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [adminId, adminUsername, adminEmail, hashedPassword, 'admin', 1, 'active']
+      );
+      console.log(`✅ Admin account created successfully (username: ${adminUsername})`);
+    } else {
+      // Ensure admin is active
+      const adminUser = await dbGet('SELECT id, status, is_active FROM users WHERE id = ?', [adminExists.id]);
+      if (adminUser && (adminUser.status !== 'active' || adminUser.is_active !== 1)) {
+        await dbRun(
+          'UPDATE users SET status = ?, is_active = ? WHERE id = ?',
+          ['active', 1, adminUser.id]
+        );
+        console.log('✅ Admin account status updated to active');
+      }
+    }
+  } catch (error: any) {
+    console.error('❌ Error ensuring admin account:', error);
+    throw error;
+  }
+};
+
+// Clear ALL users from the database EXCEPT admin accounts
 export const clearAllUsers = async () => {
   try {
-    console.log('\n🗑️  Clearing all users from database...');
-    const allUsers = await dbAll('SELECT id, email FROM users');
+    console.log('\n🗑️  Clearing all users from database (preserving admin accounts)...');
     
-    if (allUsers.length === 0) {
-      console.log('✅ No users to delete (database is already empty)');
+    // First, ensure admin account exists
+    await ensureAdminAccount();
+    
+    // Get all admin user IDs to preserve
+    const adminUsers = await dbAll('SELECT id, username FROM users WHERE role = ?', ['admin']);
+    const adminIds = adminUsers.map((u: any) => u.id);
+    const adminUsernames = adminUsers.map((u: any) => u.username);
+    
+    if (adminIds.length === 0) {
+      console.log('⚠️  No admin accounts found, creating default admin...');
+      await ensureAdminAccount();
+      const newAdmin = await dbGet('SELECT id FROM users WHERE role = ?', ['admin']);
+      if (newAdmin) adminIds.push(newAdmin.id);
+    }
+    
+    console.log(`🔒 Preserving ${adminIds.length} admin account(s): ${adminUsernames.join(', ')}`);
+    
+    const allUsers = await dbAll('SELECT id, email, username, role FROM users');
+    
+    // Filter out admin users
+    const nonAdminUsers = allUsers.filter((user: any) => !adminIds.includes(user.id));
+    
+    if (nonAdminUsers.length === 0) {
+      console.log('✅ No non-admin users to delete (only admin accounts exist)');
       return;
     }
 
-    console.log(`   Found ${allUsers.length} user(s) to delete`);
+    console.log(`   Found ${nonAdminUsers.length} non-admin user(s) to delete`);
     await dbRun('PRAGMA foreign_keys = OFF');
 
     try {
-      for (const user of allUsers) {
+      for (const user of nonAdminUsers) {
         const userId = user.id;
         await dbRun('DELETE FROM task_updates WHERE user_id = ?', [userId]);
-        await dbRun('DELETE FROM tasks WHERE created_by = ?', [userId]);
+        // Reassign tasks to first admin instead of deleting
+        if (adminIds.length > 0) {
+          await dbRun('UPDATE tasks SET created_by = ? WHERE created_by = ?', [adminIds[0], userId]);
+        } else {
+          await dbRun('DELETE FROM tasks WHERE created_by = ?', [userId]);
+        }
         await dbRun('UPDATE registration_codes SET used_by = NULL WHERE used_by = ?', [userId]);
         await dbRun('UPDATE registration_codes SET created_by = NULL WHERE created_by = ?', [userId]);
         await dbRun('DELETE FROM users WHERE id = ?', [userId]);
-        console.log(`   ✓ Deleted user: ${user.email} (${userId})`);
+        console.log(`   ✓ Deleted user: ${user.email || user.username} (${userId})`);
       }
       
       await dbRun('PRAGMA foreign_keys = ON');
-      console.log(`✅ Successfully deleted all ${allUsers.length} user(s)\n`);
+      console.log(`✅ Successfully deleted ${nonAdminUsers.length} non-admin user(s) (${adminIds.length} admin account(s) preserved)\n`);
     } catch (error: any) {
       await dbRun('PRAGMA foreign_keys = ON');
       throw error;
