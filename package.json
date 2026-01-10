@@ -16,6 +16,7 @@
     "build:web": "cd packages/web && npm run build",
     "build:backend": "cd backend && npm run build",
     "build:all": "npm run build:shared && npm run build:backend && npm run build:web",
+    "start": "cd backend && npm start",
     "test": "npm run test --workspaces"
   },
   "devDependencies": {
