@@ -81,14 +81,18 @@ const ProductsPage: React.FC = () => {
     notes: '',
   });
   const [submittingDelivery, setSubmittingDelivery] = useState(false);
+  const [deliverySuccess, setDeliverySuccess] = useState<string | null>(null);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!canViewProducts) {
       setError('You do not have permission to view products.');
+      setLoading(false);
       return;
     }
     fetchProducts();
-  }, [canViewProducts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canViewProducts, token]);
 
   const fetchProducts = async () => {
     try {
@@ -97,9 +101,12 @@ const ProductsPage: React.FC = () => {
       const response = await axios.get(ApiEndpoints.PRODUCTS.LIST, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setProducts(response.data);
+      setProducts(response.data || []);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch products');
+      console.error('Fetch products error:', err);
+      const errorMsg = err.response?.data?.error || 'Failed to fetch products';
+      setError(errorMsg);
+      setProducts([]); // Reset products on error
     } finally {
       setLoading(false);
     }
@@ -249,7 +256,8 @@ const ProductsPage: React.FC = () => {
       notes: '',
     });
     setDeliveryDialogOpen(true);
-    setError(null);
+    setDeliveryError(null);
+    setDeliverySuccess(null);
   };
 
   const handleCloseDeliveryDialog = () => {
@@ -260,11 +268,18 @@ const ProductsPage: React.FC = () => {
       deliveryDate: new Date().toISOString().split('T')[0],
       notes: '',
     });
-    setError(null);
+    setDeliveryError(null);
+    setDeliverySuccess(null);
   };
 
   const handleSubmitDelivery = async () => {
     if (!selectedProductForDelivery) return;
+
+    // Check permissions before submitting
+    if (!canEnterDelivery) {
+      setError('You do not have permission to enter delivery amounts.');
+      return;
+    }
 
     const amountNum = parseFloat(deliveryFormData.amount);
     if (!deliveryFormData.amount || isNaN(amountNum) || amountNum <= 0) {
@@ -276,7 +291,7 @@ const ProductsPage: React.FC = () => {
       setSubmittingDelivery(true);
       setError(null);
 
-      await axios.post(
+      const response = await axios.post(
         ApiEndpoints.PRODUCT_DELIVERIES.CREATE,
         {
           productId: selectedProductForDelivery.id,
@@ -289,9 +304,12 @@ const ProductsPage: React.FC = () => {
         }
       );
 
+      // Success - close dialog and reset form
       handleCloseDeliveryDialog();
+      // Optionally show success message or refresh data
       setError(null);
     } catch (err: any) {
+      console.error('Delivery submission error:', err);
       const errorMessage = err.response?.data?.error || 'Failed to enter delivery amount';
       setError(errorMessage);
     } finally {
@@ -617,9 +635,14 @@ const ProductsPage: React.FC = () => {
           {canEdit('Products') ? 'Declare Delivery' : 'Enter Delivery Amount'} - {selectedProductForDelivery?.name}
         </DialogTitle>
         <DialogContent>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+          {deliveryError && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setDeliveryError(null)}>
+              {deliveryError}
+            </Alert>
+          )}
+          {deliverySuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {deliverySuccess}
             </Alert>
           )}
           <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mb: 2 }}>
