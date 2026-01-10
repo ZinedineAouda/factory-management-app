@@ -29,46 +29,52 @@ const validateEnvironment = () => {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Required in production
+  // Critical errors (will exit)
+  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    errors.push('❌ JWT_SECRET is required in production');
+  }
+
+  // Warnings (won't exit, but important)
   if (process.env.NODE_ENV === 'production') {
     if (!process.env.FRONTEND_URL) {
-      errors.push('❌ FRONTEND_URL is required in production');
-    }
-    if (!process.env.JWT_SECRET) {
-      errors.push('❌ JWT_SECRET is required in production');
+      warnings.push('⚠️  FRONTEND_URL not set - CORS may fail. Set FRONTEND_URL in Railway environment variables.');
     }
     if (!process.env.RAILWAY_VOLUME_PATH && !process.env.DATABASE_PATH) {
-      warnings.push('⚠️  RAILWAY_VOLUME_PATH or DATABASE_PATH not set - database may not persist');
+      warnings.push('⚠️  RAILWAY_VOLUME_PATH or DATABASE_PATH not set - database may not persist across deployments');
     }
   }
 
-  // Warnings for missing optional vars
-  if (!process.env.JWT_SECRET) {
-    warnings.push('⚠️  JWT_SECRET not set - using default (INSECURE)');
-  }
-  if (!process.env.FRONTEND_URL && process.env.NODE_ENV !== 'development') {
-    warnings.push('⚠️  FRONTEND_URL not set - CORS may fail');
+  // Development warnings
+  if (process.env.NODE_ENV !== 'production') {
+    if (!process.env.JWT_SECRET) {
+      warnings.push('⚠️  JWT_SECRET not set - using default (OK for development)');
+    }
+    if (!process.env.FRONTEND_URL) {
+      warnings.push('⚠️  FRONTEND_URL not set - using default localhost origins (OK for development)');
+    }
   }
 
   // Log warnings
   if (warnings.length > 0) {
     console.warn('\n⚠️  Environment Variable Warnings:');
     warnings.forEach(w => console.warn(`   ${w}`));
+    console.warn('   (Server will continue, but these should be set for production)\n');
   }
 
-  // Log errors and exit if critical
+  // Log errors and exit ONLY for critical issues
   if (errors.length > 0) {
     console.error('\n❌ Critical Environment Variable Errors:');
     errors.forEach(e => console.error(`   ${e}`));
     console.error('\n💡 Please set the required environment variables and restart.');
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
+    console.error('   Server cannot start without these critical variables.\n');
+    process.exit(1);
   }
 
   // Success message
   if (errors.length === 0 && warnings.length === 0) {
     console.log('✅ Environment variables validated');
+  } else if (errors.length === 0) {
+    console.log('✅ Server starting (with warnings - see above)');
   }
 };
 
@@ -95,19 +101,26 @@ const getAllowedOrigins = (): string[] => {
     return devOrigins;
   }
   
-  // Production fallback - log warning
+  // Production fallback - allow all origins if FRONTEND_URL not set (less secure but won't break)
+  // This allows the server to start, but admin should set FRONTEND_URL
   console.warn('⚠️  WARNING: FRONTEND_URL not set in production!');
-  console.warn('⚠️  CORS may fail. Set FRONTEND_URL environment variable.');
+  console.warn('⚠️  CORS: Allowing all origins (less secure). Set FRONTEND_URL for better security.');
   console.warn('⚠️  Example: FRONTEND_URL=https://your-app.vercel.app');
   
-  // Return empty array to be strict (will fail CORS but be obvious)
-  return [];
+  // Return wildcard to allow all origins (less secure but won't break deployment)
+  // Admin should set FRONTEND_URL for security
+  return ['*'];
 };
 
 const allowedOrigins = getAllowedOrigins();
 
 app.use(cors({
   origin: (origin, callback) => {
+    // If wildcard is set (FRONTEND_URL not configured), allow all origins
+    if (allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+    
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
