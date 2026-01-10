@@ -101,34 +101,6 @@ const UserManagementPage: React.FC = () => {
     fetchGroups();
   }, []);
 
-  // Keyboard shortcuts for approval dialog
-  useEffect(() => {
-    if (!approveDialogOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Enter key - approve user
-      if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-        const target = event.target as HTMLElement;
-        // Don't trigger if typing in an input field or select is open
-        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.closest('.MuiPopover-root')) {
-          event.preventDefault();
-          if (!approving && selectedRole) {
-            handleApproveUser();
-          }
-        }
-      }
-      
-      // Escape key - close dialog
-      if (event.key === 'Escape' && !approving) {
-        event.preventDefault();
-        handleCloseApproveDialog();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [approveDialogOpen, approving, selectedRole, handleApproveUser, handleCloseApproveDialog]);
-
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
@@ -275,6 +247,34 @@ const UserManagementPage: React.FC = () => {
       setApproving(false);
     }
   }, [selectedUser, selectedRole, selectedDepartmentId, selectedGroupId, token, handleCloseApproveDialog, fetchUsers, fetchPendingUsers]);
+
+  // Keyboard shortcuts for approval dialog (must be after handleApproveUser and handleCloseApproveDialog declarations)
+  useEffect(() => {
+    if (!approveDialogOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Enter key - approve user
+      if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        const target = event.target as HTMLElement;
+        // Don't trigger if typing in an input field or select is open
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.closest('.MuiPopover-root')) {
+          event.preventDefault();
+          if (!approving && selectedRole) {
+            handleApproveUser();
+          }
+        }
+      }
+      
+      // Escape key - close dialog
+      if (event.key === 'Escape' && !approving) {
+        event.preventDefault();
+        handleCloseApproveDialog();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [approveDialogOpen, approving, selectedRole, handleApproveUser, handleCloseApproveDialog]);
 
   const fetchDepartments = async () => {
     try {
