@@ -15,7 +15,6 @@ import {
   IconButton,
 } from '@mui/material';
 import {
-  Description,
   Send,
   Image as ImageIcon,
   Close,
@@ -225,7 +224,7 @@ const ReportCreatePage: React.FC = () => {
                           backgroundColor:
                             selectedDepartment === dept.id
                               ? alpha(colors.primary[500], 0.15)
-                              : colors.neutral[750],
+                              : colors.neutral[800],
                         },
                       }}
                     />

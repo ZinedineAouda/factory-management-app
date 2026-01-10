@@ -9,6 +9,7 @@ import {
   Alert,
   IconButton,
   Tooltip,
+  Chip,
 } from '@mui/material';
 import {
   Description,
@@ -48,14 +49,6 @@ const ReportsPage: React.FC = () => {
 
   const canCreateReport = () => {
     return isAdmin || (canEdit('Reports') && user?.role === 'operator');
-  };
-
-  const canEditReport = (report: Report) => {
-    if (isAdmin) return true;
-    if (canEdit('Reports') && user?.role === 'operator' && report.operator_id === user?.id) {
-      return true;
-    }
-    return false;
   };
 
   useEffect(() => {
@@ -115,7 +108,7 @@ const ReportsPage: React.FC = () => {
                     height: 20,
                     fontSize: '0.7rem',
                     backgroundColor: alpha(colors.success[500], 0.1),
-                    color: colors.success[400],
+                    color: colors.success[500],
                   }}
                 />
               ) : (
@@ -127,7 +120,7 @@ const ReportsPage: React.FC = () => {
                     height: 20,
                     fontSize: '0.7rem',
                     backgroundColor: alpha(colors.warning[500], 0.1),
-                    color: colors.warning[400],
+                    color: colors.warning[500],
                   }}
                 />
               )}
