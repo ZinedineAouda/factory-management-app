@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import {
@@ -11,6 +11,8 @@ import {
   Assignment,
   ArrowForward,
   Inventory,
+  AccessTime,
+  CalendarToday,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { colors } from '../../theme';
@@ -19,6 +21,33 @@ import { RootState } from '../../store';
 const WorkerDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  // Update date and time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+  };
 
   const isProduction = user?.departmentName?.toLowerCase() === 'production';
 
@@ -54,6 +83,111 @@ const WorkerDashboardPage: React.FC = () => {
       title="Dashboard"
       subtitle={`Welcome back! ${user?.departmentName ? `You're assigned to ${user.departmentName} department.` : 'Contact admin to get assigned to a department.'}`}
     >
+      {/* Date and Time Display */}
+      <Box
+        sx={{
+          mb: 3,
+          p: 2.5,
+          backgroundColor: colors.neutral[900],
+          border: `1px solid ${colors.neutral[800]}`,
+          borderRadius: 3,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            flex: 1,
+            minWidth: { xs: '100%', sm: 'auto' },
+          }}
+        >
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              backgroundColor: alpha(colors.primary[500], 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: colors.primary[500],
+            }}
+          >
+            <CalendarToday sx={{ fontSize: 24 }} />
+          </Box>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: '0.875rem',
+                color: colors.neutral[400],
+                fontWeight: 500,
+                mb: 0.25,
+              }}
+            >
+              {formatDate(currentDateTime)}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '0.75rem',
+                color: colors.neutral[500],
+              }}
+            >
+              Current Date
+            </Typography>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            flex: 1,
+            minWidth: { xs: '100%', sm: 'auto' },
+          }}
+        >
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              backgroundColor: alpha(colors.success[500], 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: colors.success[500],
+            }}
+          >
+            <AccessTime sx={{ fontSize: 24 }} />
+          </Box>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: '1.125rem',
+                color: colors.neutral[100],
+                fontWeight: 600,
+                fontFamily: 'monospace',
+                letterSpacing: '0.05em',
+                mb: 0.25,
+              }}
+            >
+              {formatTime(currentDateTime)}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '0.75rem',
+                color: colors.neutral[500],
+              }}
+            >
+              Current Time
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
 
       {/* Quick Actions */}
       <Box

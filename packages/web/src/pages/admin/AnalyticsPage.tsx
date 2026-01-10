@@ -10,6 +10,8 @@ import {
   Tabs,
   Tab,
   LinearProgress,
+  TextField,
+  Paper,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -18,6 +20,7 @@ import {
   Refresh,
   LocalShipping,
   Inventory,
+  CalendarToday,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { StatCard } from '../../components/ui';
@@ -48,18 +51,44 @@ const AnalyticsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [productionData, setProductionData] = useState<ProductionAnalytics | null>(null);
   const [maintenanceData, setMaintenanceData] = useState<MaintenanceAnalytics | null>(null);
+  
+  // Date range state - default to last 30 days
+  const getDefaultStartDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split('T')[0];
+  };
+  
+  const getDefaultEndDate = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+  
+  const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
+  const [endDate, setEndDate] = useState<string>(getDefaultEndDate());
 
   useEffect(() => {
     fetchAnalytics();
-  }, [tabValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabValue, startDate, endDate]);
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Build query parameters for date filtering
+      const params = new URLSearchParams();
+      if (startDate) {
+        params.append('startDate', startDate);
+      }
+      if (endDate) {
+        params.append('endDate', endDate);
+      }
+      const queryString = params.toString();
+      const url = queryString ? `${ApiEndpoints.ANALYTICS.PRODUCTION}?${queryString}` : ApiEndpoints.ANALYTICS.PRODUCTION;
+
       if (tabValue === 0) {
-        const response = await axios.get(ApiEndpoints.ANALYTICS.PRODUCTION, {
+        const response = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = response.data || {};
@@ -71,7 +100,8 @@ const AnalyticsPage: React.FC = () => {
           deliveriesByDate: data.deliveriesByDate || [],
         });
       } else {
-        const response = await axios.get(ApiEndpoints.ANALYTICS.MAINTENANCE, {
+        const maintenanceUrl = queryString ? `${ApiEndpoints.ANALYTICS.MAINTENANCE}?${queryString}` : ApiEndpoints.ANALYTICS.MAINTENANCE;
+        const response = await axios.get(maintenanceUrl, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = response.data || {};
@@ -122,6 +152,11 @@ const AnalyticsPage: React.FC = () => {
     }
   };
 
+  const handleResetDates = () => {
+    setStartDate(getDefaultStartDate());
+    setEndDate(getDefaultEndDate());
+  };
+
   return (
     <PageContainer
       title="Analytics"
@@ -137,6 +172,94 @@ const AnalyticsPage: React.FC = () => {
         </Button>
       }
     >
+      {/* Date Range Picker */}
+      <Paper
+        sx={{
+          p: 2,
+          mb: 3,
+          backgroundColor: colors.neutral[900],
+          border: `1px solid ${colors.neutral[800]}`,
+          borderRadius: 2,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <CalendarToday sx={{ color: colors.neutral[400], fontSize: 20 }} />
+          <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.neutral[300], mr: 1 }}>
+            Date Range:
+          </Typography>
+          <TextField
+            label="Start Date"
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: colors.neutral[800],
+                '& fieldset': {
+                  borderColor: colors.neutral[700],
+                },
+                '&:hover fieldset': {
+                  borderColor: colors.neutral[600],
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: colors.primary[500],
+                },
+              },
+              '& .MuiInputBase-input': {
+                color: colors.neutral[100],
+              },
+              '& .MuiInputLabel-root': {
+                color: colors.neutral[400],
+              },
+            }}
+          />
+          <TextField
+            label="End Date"
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: colors.neutral[800],
+                '& fieldset': {
+                  borderColor: colors.neutral[700],
+                },
+                '&:hover fieldset': {
+                  borderColor: colors.neutral[600],
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: colors.primary[500],
+                },
+              },
+              '& .MuiInputBase-input': {
+                color: colors.neutral[100],
+              },
+              '& .MuiInputLabel-root': {
+                color: colors.neutral[400],
+              },
+            }}
+          />
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleResetDates}
+            sx={{
+              ml: 'auto',
+              borderColor: colors.neutral[700],
+              color: colors.neutral[300],
+              '&:hover': {
+                borderColor: colors.neutral[600],
+                backgroundColor: colors.neutral[800],
+              },
+            }}
+          >
+            Reset to Last 30 Days
+          </Button>
+        </Box>
+      </Paper>
+
       {/* Tabs */}
       <Box
         sx={{

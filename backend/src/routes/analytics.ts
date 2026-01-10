@@ -8,14 +8,41 @@ const router = express.Router();
 // Get production analytics (Admin only) - Now based on product deliveries
 router.get('/production', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
-    // Get all product deliveries
+    // Get date range from query parameters (optional)
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    
+    // Build WHERE clause for date filtering
+    let dateFilter = '';
+    const params: any[] = [];
+    if (startDate || endDate) {
+      const conditions: string[] = [];
+      if (startDate) {
+        conditions.push('pd.delivery_date >= ?');
+        params.push(startDate);
+      }
+      if (endDate) {
+        // Add one day to endDate to include the entire end date
+        const endDateObj = new Date(endDate);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        const endDateStr = endDateObj.toISOString().split('T')[0];
+        conditions.push('pd.delivery_date < ?');
+        params.push(endDateStr);
+      }
+      if (conditions.length > 0) {
+        dateFilter = 'WHERE ' + conditions.join(' AND ');
+      }
+    }
+    
+    // Get product deliveries with optional date filtering
     const deliveries = await dbAll(`
       SELECT pd.*, p.name as product_name, u.username as worker_username
       FROM product_deliveries pd
       JOIN products p ON pd.product_id = p.id
       JOIN users u ON pd.worker_id = u.id
+      ${dateFilter}
       ORDER BY pd.delivery_date DESC, pd.created_at DESC
-    `);
+    `, params);
     
     const totalDeliveries = deliveries.length;
     const totalAmount = deliveries.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
@@ -52,17 +79,12 @@ router.get('/production', authenticate, requireRole(['admin']), async (req: Auth
       totalAmount: data.totalAmount
     }));
     
-    // Group by date (last 30 days)
+    // Group by date (all dates in the filtered results)
     const dateMap = new Map<string, number>();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
     deliveries.forEach((delivery: any) => {
       const deliveryDate = new Date(delivery.delivery_date);
-      if (deliveryDate >= thirtyDaysAgo) {
-        const dateKey = deliveryDate.toISOString().split('T')[0];
-        dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + (delivery.amount || 0));
-      }
+      const dateKey = deliveryDate.toISOString().split('T')[0];
+      dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + (delivery.amount || 0));
     });
     const deliveriesByDate = Array.from(dateMap.entries())
       .map(([date, amount]) => ({ date, amount }))
@@ -84,13 +106,40 @@ router.get('/production', authenticate, requireRole(['admin']), async (req: Auth
 // Get maintenance analytics (Admin only)
 router.get('/maintenance', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
-    // Get all reports
+    // Get date range from query parameters (optional)
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    
+    // Build WHERE clause for date filtering
+    let dateFilter = '';
+    const params: any[] = [];
+    if (startDate || endDate) {
+      const conditions: string[] = [];
+      if (startDate) {
+        conditions.push('r.created_at >= ?');
+        params.push(startDate);
+      }
+      if (endDate) {
+        // Add one day to endDate to include the entire end date
+        const endDateObj = new Date(endDate);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        const endDateStr = endDateObj.toISOString().split('T')[0];
+        conditions.push('r.created_at < ?');
+        params.push(endDateStr);
+      }
+      if (conditions.length > 0) {
+        dateFilter = 'WHERE ' + conditions.join(' AND ');
+      }
+    }
+    
+    // Get reports with optional date filtering
     const reports = await dbAll(`
       SELECT r.*, g.name as group_name
       FROM reports r
       LEFT JOIN tasks t ON r.task_id = t.id
       LEFT JOIN groups g ON t.group_id = g.id
-    `);
+      ${dateFilter}
+    `, params);
     
     const totalReports = reports.length;
     

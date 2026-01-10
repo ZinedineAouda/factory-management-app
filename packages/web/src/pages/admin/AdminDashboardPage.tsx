@@ -21,6 +21,8 @@ import {
   Inventory,
   Description,
   Delete,
+  AccessTime,
+  CalendarToday,
 } from '@mui/icons-material';
 import {
   AreaChart,
@@ -73,6 +75,15 @@ const AdminDashboardPage: React.FC = () => {
   const [clearingActivity, setClearingActivity] = useState(false);
   const [activityData, setActivityData] = useState<Array<{ name: string; tasks: number }>>([]);
   const [departmentData, setDepartmentData] = useState<Array<{ name: string; value: number; color: string }>>([]);
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  // Update date and time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -223,11 +234,135 @@ const AdminDashboardPage: React.FC = () => {
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   };
 
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+  };
+
   return (
     <PageContainer
       title="Dashboard"
       subtitle="Welcome back! Here's an overview of your factory operations."
     >
+      {/* Date and Time Display */}
+      <Box
+        sx={{
+          mb: 3,
+          p: 2.5,
+          backgroundColor: colors.neutral[900],
+          border: `1px solid ${colors.neutral[800]}`,
+          borderRadius: 3,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            flex: 1,
+            minWidth: { xs: '100%', sm: 'auto' },
+          }}
+        >
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              backgroundColor: alpha(colors.primary[500], 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: colors.primary[500],
+            }}
+          >
+            <CalendarToday sx={{ fontSize: 24 }} />
+          </Box>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: '0.875rem',
+                color: colors.neutral[400],
+                fontWeight: 500,
+                mb: 0.25,
+              }}
+            >
+              {formatDate(currentDateTime)}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '0.75rem',
+                color: colors.neutral[500],
+              }}
+            >
+              Current Date
+            </Typography>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            flex: 1,
+            minWidth: { xs: '100%', sm: 'auto' },
+          }}
+        >
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              backgroundColor: alpha(colors.success[500], 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: colors.success[500],
+            }}
+          >
+            <AccessTime sx={{ fontSize: 24 }} />
+          </Box>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: '1.125rem',
+                color: colors.neutral[100],
+                fontWeight: 600,
+                fontFamily: 'monospace',
+                letterSpacing: '0.05em',
+                mb: 0.25,
+              }}
+            >
+              {formatTime(currentDateTime)}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '0.75rem',
+                color: colors.neutral[500],
+              }}
+            >
+              Current Time
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
       {/* Stats Grid */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} lg={3}>
