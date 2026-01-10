@@ -198,7 +198,7 @@ const UserManagementPage: React.FC = () => {
 
       console.log('[APPROVE] Starting approval:', {
         userId: selectedUser.id,
-        username: (selectedUser as any).username || selectedUser.email,
+        username: (selectedUser as any).username || selectedUser.email || 'Unknown',
         payload,
         endpoint: ApiEndpoints.USERS.APPROVE(selectedUser.id),
       });
@@ -555,8 +555,8 @@ const UserManagementPage: React.FC = () => {
     // Search filter - only apply if search query exists
     if (searchQuery.trim().length > 0) {
       const matchesSearch =
-        (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
         ((user as any).username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
         (user.departmentName?.toLowerCase() || '').includes(searchQuery.toLowerCase());
       
       if (!matchesSearch) return false;
@@ -661,11 +661,11 @@ const UserManagementPage: React.FC = () => {
               fontSize: '0.75rem',
             }}
           >
-            {(row.email || (row as any).username || 'U').charAt(0).toUpperCase()}
+            {((row as any).username || row.email || 'U').charAt(0).toUpperCase()}
           </Avatar>
           <Box>
             <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.neutral[100] }}>
-              {row.email || (row as any).username || 'No email'}
+              @{((row as any).username || row.email || 'Unknown User')}
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
               Joined {new Date(row.createdAt).toLocaleDateString()}
@@ -951,7 +951,7 @@ const UserManagementPage: React.FC = () => {
             }}
           >
             <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100], mb: 2 }}>
-              Statistics for {user.email || (user as any).username || 'Unknown User'}
+              Statistics for @{((user as any).username || user.email || 'Unknown User')}
             </Typography>
             {isLoadingStats ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
@@ -1088,11 +1088,11 @@ const UserManagementPage: React.FC = () => {
               Approving User:
             </Typography>
             <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100] }}>
-              {selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}
+              @{((selectedUser as any)?.username || selectedUser?.email || 'Unknown User')}
             </Typography>
-            {selectedUser?.email && (selectedUser as any)?.username && (
+            {selectedUser?.email && (
               <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mt: 0.5 }}>
-                @{(selectedUser as any).username}
+                {selectedUser.email}
               </Typography>
             )}
           </Box>
@@ -1304,7 +1304,12 @@ const UserManagementPage: React.FC = () => {
             </Alert>
           )}
           <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mb: 3 }}>
-            Assign role, department and group for: <strong style={{ color: colors.neutral[100] }}>{selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}</strong>
+            Assign role, department and group for: <strong style={{ color: colors.neutral[100] }}>@{((selectedUser as any)?.username || selectedUser?.email || 'Unknown User')}</strong>
+            {selectedUser?.email && (
+              <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mt: 0.5 }}>
+                Email: {selectedUser.email}
+              </Typography>
+            )}
           </Typography>
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel>Role</InputLabel>
@@ -1377,7 +1382,12 @@ const UserManagementPage: React.FC = () => {
             </Alert>
           )}
           <Typography sx={{ fontSize: '0.9375rem', color: colors.neutral[300], mb: 2 }}>
-            Are you sure you want to delete <strong style={{ color: colors.neutral[100] }}>{userToDelete?.email || (userToDelete as any)?.username || 'Unknown User'}</strong>?
+            Are you sure you want to delete <strong style={{ color: colors.neutral[100] }}>@{((userToDelete as any)?.username || userToDelete?.email || 'Unknown User')}</strong>?
+            {userToDelete?.email && (
+              <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mt: 0.5 }}>
+                Email: {userToDelete.email}
+              </Typography>
+            )}
           </Typography>
           <Alert severity="warning" sx={{ mb: 2 }}>
             This action cannot be undone. All data associated with this user will be permanently deleted.
@@ -1572,8 +1582,13 @@ const UserManagementPage: React.FC = () => {
               Editing credentials for:
             </Typography>
             <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100] }}>
-              {selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}
+              @{((selectedUser as any)?.username || selectedUser?.email || 'Unknown User')}
             </Typography>
+            {selectedUser?.email && (
+              <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mt: 0.5 }}>
+                Email: {selectedUser.email}
+              </Typography>
+            )}
           </Box>
           <Alert severity="info" sx={{ mb: 3 }}>
             <Typography variant="body2">

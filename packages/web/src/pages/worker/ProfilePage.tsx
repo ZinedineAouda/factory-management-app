@@ -73,7 +73,7 @@ const ProfilePage: React.FC = () => {
               {getUserInitials()}
                   </Avatar>
             <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: colors.neutral[100] }}>
-              {(user as any)?.username || 'User'}
+              @{((user as any)?.username || user?.email || 'User')}
             </Typography>
             <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[500], mt: 0.5, textTransform: 'capitalize' }}>
               {user?.role}

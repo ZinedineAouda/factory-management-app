@@ -214,10 +214,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
     if ((user as any)?.username) {
       return (user as any).username.charAt(0).toUpperCase();
     }
-    if ((user as any)?.email) {
-      return (user as any).email.charAt(0).toUpperCase();
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
     }
     return 'U';
+  };
+  
+  const getUserDisplayName = () => {
+    return (user as any)?.username ? `@${(user as any).username}` : (user?.email || 'User');
   };
 
   return (
@@ -322,7 +326,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
         }}
       >
         {collapsed ? (
-          <Tooltip title={(user as any)?.username || (user as any)?.email || 'User'} placement="right">
+          <Tooltip title={getUserDisplayName()} placement="right">
             <Avatar
               sx={{
                 width: 36,
@@ -359,7 +363,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
                   whiteSpace: 'nowrap',
                 }}
               >
-                {(user as any)?.username || 'User'}
+                {getUserDisplayName()}
               </Typography>
               <Typography
                 sx={{

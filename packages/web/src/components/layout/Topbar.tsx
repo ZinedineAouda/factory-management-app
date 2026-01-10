@@ -197,10 +197,14 @@ const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed, onMenuClick }) => {
     if ((user as any)?.username) {
       return (user as any).username.charAt(0).toUpperCase();
     }
-    if ((user as any)?.email) {
-      return (user as any).email.charAt(0).toUpperCase();
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
     }
     return 'U';
+  };
+  
+  const getUserDisplayName = () => {
+    return (user as any)?.username ? `@${(user as any).username}` : (user?.email || 'User');
   };
 
   return (
@@ -477,11 +481,13 @@ const Topbar: React.FC<TopbarProps> = ({ sidebarCollapsed, onMenuClick }) => {
         >
           <Box sx={{ px: 2, py: 1.5 }}>
             <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.neutral[100] }}>
-              {(user as any)?.username || 'User'}
+              {getUserDisplayName()}
             </Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
-              {(user as any)?.email}
-            </Typography>
+            {user?.email && (
+              <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
+                {user.email}
+              </Typography>
+            )}
           </Box>
           <Divider sx={{ borderColor: colors.neutral[800] }} />
           <MenuItem onClick={handleProfile} sx={{ mt: 0.5 }}>
