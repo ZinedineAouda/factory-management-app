@@ -649,7 +649,7 @@ const ProductsPage: React.FC = () => {
                       <TableRow key={delivery.id} hover>
                         <TableCell sx={{ color: colors.neutral[100] }}>{delivery.product_name || 'Unknown'}</TableCell>
                         <TableCell sx={{ color: colors.neutral[100] }}>{delivery.worker_username || 'Unknown'}</TableCell>
-                        <TableCell align="right" sx={{ color: colors.success[400], fontWeight: 600 }}>
+                        <TableCell align="right" sx={{ color: colors.success[500], fontWeight: 600 }}>
                           {delivery.amount?.toLocaleString() || '0'}
                         </TableCell>
                         <TableCell sx={{ color: colors.neutral[300] }}>

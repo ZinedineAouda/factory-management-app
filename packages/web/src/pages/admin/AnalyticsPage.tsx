@@ -15,7 +15,6 @@ import {
   TrendingUp,
   Assignment,
   CheckCircle,
-  Schedule,
   Refresh,
   LocalShipping,
   Inventory,
@@ -229,7 +228,7 @@ const AnalyticsPage: React.FC = () => {
                             <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100] }}>
                               {item.deliveryCount} deliveries
                             </Typography>
-                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.success[400] }}>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.success[500] }}>
                               {item.totalAmount.toLocaleString()}
                             </Typography>
                           </Box>
@@ -281,7 +280,7 @@ const AnalyticsPage: React.FC = () => {
                             <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100] }}>
                               {item.deliveryCount} deliveries
                             </Typography>
-                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.success[400] }}>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.success[500] }}>
                               {item.totalAmount.toLocaleString()}
                             </Typography>
                           </Box>
