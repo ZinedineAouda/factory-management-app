@@ -86,36 +86,55 @@ const LoginPage: React.FC = () => {
     const currentError = error || persistedError;
     if (!currentError) return null;
     
+    // Extract error message
+    let errorMsg = '';
     if (typeof currentError === 'string') {
-      if (currentError.includes('Account not found') || currentError.includes('does not exist') || currentError.includes('Invalid username')) {
-        return {
-          title: 'Account Not Found',
-          description: 'The username you entered does not exist. Please check your username and try again.',
-        };
-      }
-      if (currentError.includes('Incorrect password') || (currentError.includes('password') && currentError.includes('incorrect'))) {
-        return {
-          title: 'Incorrect Password',
-          description: 'The password you entered is incorrect. Please check your password and try again.',
-        };
-      }
-      if (currentError.includes('pending approval')) {
-        return {
-          title: 'Account Pending Approval',
-          description: 'Your account is waiting for administrator approval. Please contact your administrator.',
-        };
-      }
+      errorMsg = currentError;
+    } else {
+      const errorObj = currentError as any;
+      errorMsg = errorObj?.message || errorObj?.error || String(currentError);
+    }
+    
+    // Check for network errors first
+    if (errorMsg.includes('Cannot connect') || 
+        errorMsg.includes('Network error') ||
+        errorMsg.includes('Connection refused') ||
+        errorMsg.includes('timeout') ||
+        errorMsg.includes('ERR_NETWORK') ||
+        errorMsg.includes('ECONNREFUSED')) {
       return {
-        title: 'Login Failed',
-        description: currentError,
+        title: 'Cannot Connect to Server',
+        description: 'Unable to reach the backend server. Please check:\n\n' +
+          '1. Backend server is running\n' +
+          '2. API URL is configured correctly (check browser console F12)\n' +
+          '3. Network connection is active\n\n' +
+          'If this is production, ensure VITE_API_URL is set in Vercel environment variables.',
       };
     }
     
-    const errorObj = currentError as any;
-    const message = errorObj?.message || errorObj?.error || 'An unexpected error occurred. Please try again.';
+    // Check for specific login errors
+    if (errorMsg.includes('Account not found') || errorMsg.includes('does not exist') || errorMsg.includes('Invalid username')) {
+      return {
+        title: 'Account Not Found',
+        description: 'The username you entered does not exist. Please check your username and try again.',
+      };
+    }
+    if (errorMsg.includes('Incorrect password') || (errorMsg.includes('password') && errorMsg.includes('incorrect'))) {
+      return {
+        title: 'Incorrect Password',
+        description: 'The password you entered is incorrect. Please check your password and try again.',
+      };
+    }
+    if (errorMsg.includes('pending approval')) {
+      return {
+        title: 'Account Pending Approval',
+        description: 'Your account is waiting for administrator approval. Please contact your administrator.',
+      };
+    }
+    
     return {
       title: 'Login Failed',
-      description: message,
+      description: errorMsg,
     };
   }, [error, persistedError]);
 

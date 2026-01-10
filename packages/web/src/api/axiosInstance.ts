@@ -122,8 +122,37 @@ const setupInterceptors = (instance: AxiosInstance): AxiosInstance => {
   instance.interceptors.response.use(
     (response) => response,
     (error: AxiosError | any) => {
-      // Extract error message safely
-      const errorMessage = extractErrorMessage(error);
+      // Enhanced error detection for network issues
+      let errorMessage = extractErrorMessage(error);
+      
+      // Check for network errors
+      if (!error?.response) {
+        // No response = network error (backend unreachable, CORS, timeout)
+        const baseURL = instance.defaults.baseURL || 'unknown';
+        if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
+          errorMessage = `Cannot connect to backend server. Please check:\n\n` +
+            `1. Backend URL: ${baseURL}\n` +
+            `2. Backend is running\n` +
+            `3. CORS is configured correctly\n` +
+            `4. Network connection is active\n\n` +
+            `If this is production, ensure VITE_API_URL is set correctly in Vercel.`;
+        } else if (error?.code === 'ECONNREFUSED') {
+          errorMessage = `Connection refused. Backend server is not running or not accessible at ${baseURL}`;
+        } else if (error?.code === 'ETIMEDOUT' || error?.message?.includes('timeout')) {
+          errorMessage = `Request timeout. Backend server took too long to respond at ${baseURL}`;
+        } else {
+          errorMessage = `Network error: ${errorMessage}\n\nBackend URL: ${baseURL}`;
+        }
+        
+        // Log detailed error for debugging
+        console.error('🌐 Network Error Details:', {
+          code: error?.code,
+          message: error?.message,
+          baseURL: baseURL,
+          url: error?.config?.url,
+          method: error?.config?.method,
+        });
+      }
 
       // Create normalized error with string message
       const normalizedError = new Error(errorMessage);
