@@ -81,6 +81,8 @@ export const initDatabase = async () => {
   await dbRun(`ALTER TABLE users ADD COLUMN group_id TEXT`).catch(() => {});
   // Add status column if it doesn't exist (default 'pending', but admin needs 'active')
   await dbRun(`ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'pending'`).catch(() => {});
+  // Add updated_at column if it doesn't exist
+  await dbRun(`ALTER TABLE users ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
 
   // Departments table
   await dbRun(`

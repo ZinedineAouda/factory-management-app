@@ -71,6 +71,7 @@ const UserManagementPage: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingPending, setLoadingPending] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [statistics, setStatistics] = useState<Record<string, WorkerStatistics>>({});
   const [loadingStats, setLoadingStats] = useState<Record<string, boolean>>({});
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -149,48 +150,79 @@ const UserManagementPage: React.FC = () => {
   };
 
   const handleApproveUser = async () => {
-    if (!selectedUser || !selectedRole) return;
+    if (!selectedUser) {
+      setError('No user selected');
+      return;
+    }
+
+    if (!selectedRole) {
+      setError('Please select a role');
+      return;
+    }
 
     try {
       setError(null);
+      setApproving(true);
+      
+      // Ensure role is a string (UserRole enum values are already strings)
+      const roleString = String(selectedRole).toLowerCase().trim();
+      
+      // Validate role
+      const validRoles = ['admin', 'worker', 'operator', 'leader'];
+      if (!validRoles.includes(roleString)) {
+        setError(`Invalid role: ${roleString}. Must be one of: ${validRoles.join(', ')}`);
+        setApproving(false);
+        return;
+      }
+
       const payload: {
         role: string;
-        departmentId?: string | null;
-        groupId?: string | null;
+        departmentId: string | null;
+        groupId: string | null;
       } = {
-        role: selectedRole, // UserRole enum values are already strings: 'admin', 'worker', 'operator', 'leader'
+        role: roleString,
+        departmentId: (selectedDepartmentId && selectedDepartmentId.trim()) ? selectedDepartmentId.trim() : null,
+        groupId: (selectedGroupId && selectedGroupId.trim()) ? selectedGroupId.trim() : null,
       };
 
-      // Only include departmentId if provided
-      if (selectedDepartmentId && selectedDepartmentId.trim()) {
-        payload.departmentId = selectedDepartmentId.trim();
-      } else {
-        payload.departmentId = null;
-      }
+      console.log('[Frontend] Approving user:', {
+        userId: selectedUser.id,
+        username: (selectedUser as any).username || selectedUser.email,
+        payload,
+        endpoint: ApiEndpoints.USERS.APPROVE(selectedUser.id),
+      });
 
-      // Only include groupId if provided
-      if (selectedGroupId && selectedGroupId.trim()) {
-        payload.groupId = selectedGroupId.trim();
-      } else {
-        payload.groupId = null;
-      }
-
-      await axios.post(
+      const response = await axios.post(
         ApiEndpoints.USERS.APPROVE(selectedUser.id),
         payload,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          } 
+        }
       );
+
+      console.log('[Frontend] Approval successful:', response.data);
+
+      // Only close dialog and refresh on success
       handleCloseApproveDialog();
-      // Refresh both lists
       await Promise.all([fetchUsers(), fetchPendingUsers()]);
     } catch (error: any) {
-      console.error('Approve user error:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error details:', {
+      console.error('[Frontend] Approve user error:', error);
+      console.error('[Frontend] Error response:', error.response?.data);
+      console.error('[Frontend] Error details:', {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
         message: error.message,
+        userId: selectedUser?.id,
+        payload: {
+          role: selectedRole,
+          departmentId: selectedDepartmentId,
+          groupId: selectedGroupId,
+        },
+        endpoint: ApiEndpoints.USERS.APPROVE(selectedUser?.id || ''),
       });
       
       const errorMessage =
@@ -198,8 +230,10 @@ const UserManagementPage: React.FC = () => {
         error.response?.data?.message || 
         error.response?.data?.details ||
         error.message || 
-        'Failed to approve user. Please check the console for details.';
+        `Failed to approve user. ${error.response?.status ? `Status: ${error.response.status}` : ''} Please check the console for details.`;
       setError(errorMessage);
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -923,15 +957,26 @@ const UserManagementPage: React.FC = () => {
             onClick={handleApproveUser} 
             variant="contained"
             color="success"
-            disabled={!selectedRole}
+            disabled={!selectedRole || approving}
             sx={{
               backgroundColor: colors.success[500],
               '&:hover': {
                 backgroundColor: colors.success[600],
               },
+              '&:disabled': {
+                backgroundColor: colors.neutral[700],
+                color: colors.neutral[500],
+              },
             }}
           >
-            Approve & Assign
+            {approving ? (
+              <>
+                <CircularProgress size={16} sx={{ mr: 1 }} />
+                Approving...
+              </>
+            ) : (
+              'Approve & Assign'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
