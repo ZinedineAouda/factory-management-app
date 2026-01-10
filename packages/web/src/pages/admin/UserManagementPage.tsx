@@ -216,7 +216,7 @@ const UserManagementPage: React.FC = () => {
       // Refresh data - ensure we get the latest from server
       try {
         console.log('[APPROVE] Refreshing user lists...');
-        const [usersResult, pendingResult] = await Promise.all([
+        await Promise.all([
           fetchUsers(),
           fetchPendingUsers(),
         ]);
