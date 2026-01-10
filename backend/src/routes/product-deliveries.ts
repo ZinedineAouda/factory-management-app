@@ -25,20 +25,32 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 
     // Check permissions: Admin always allowed, others need can_view_products OR can_edit_products
     if (userRole !== 'admin') {
+      // Normalize role to lowercase for database lookup
+      const normalizedRole = String(userRole || '').toLowerCase().trim();
+      
       const rolePermissions = await dbGet(
-        'SELECT can_view_products, can_edit_products FROM role_permissions WHERE role = ?',
-        [userRole]
+        'SELECT can_view_products, can_edit_products FROM role_permissions WHERE LOWER(role) = ?',
+        [normalizedRole]
       );
 
       if (!rolePermissions) {
-        return res.status(403).json({ error: 'Insufficient permissions' });
+        console.error(`[DELIVERY] No permissions found for role: ${userRole} (normalized: ${normalizedRole})`);
+        return res.status(403).json({ 
+          error: 'Insufficient permissions',
+          details: `No role permissions found for role: ${userRole}`
+        });
       }
 
       const hasViewPermission = (rolePermissions as any).can_view_products === 1;
       const hasEditPermission = (rolePermissions as any).can_edit_products === 1;
 
+      console.log(`[DELIVERY] Role: ${userRole}, hasViewPermission: ${hasViewPermission}, hasEditPermission: ${hasEditPermission}`);
+
       if (!hasViewPermission && !hasEditPermission) {
-        return res.status(403).json({ error: 'Insufficient permissions. You need view or edit products permission to create deliveries.' });
+        return res.status(403).json({ 
+          error: 'Insufficient permissions. You need view or edit products permission to create deliveries.',
+          details: `Role ${userRole} does not have can_view_products or can_edit_products permission`
+        });
       }
     }
 
@@ -54,7 +66,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     
     await dbRun(
       'INSERT INTO product_deliveries (id, product_id, worker_id, amount, delivery_date, notes) VALUES (?, ?, ?, ?, ?, ?)',
-      [deliveryId, productId, workerId, amount, deliveryDateValue, notes || null]
+      [deliveryId, productId, userId, amount, deliveryDateValue, notes || null]
     );
 
     // Update analytics
