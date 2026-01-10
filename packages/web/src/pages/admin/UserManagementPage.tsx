@@ -104,13 +104,16 @@ const UserManagementPage: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('[FETCH USERS] Fetching active users...');
       const response = await axios.get(ApiEndpoints.USERS.LIST, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const allUsers = response.data;
+      const allUsers = response.data || [];
+      console.log('[FETCH USERS] Received users:', allUsers.length);
       setUsers(allUsers);
       setWorkers(allUsers.filter((u: User) => u.role === UserRole.WORKER));
     } catch (error: any) {
+      console.error('[FETCH USERS] Error:', error);
       setError('Failed to fetch users');
     } finally {
       setLoading(false);
@@ -204,16 +207,31 @@ const UserManagementPage: React.FC = () => {
 
       console.log('[APPROVE] ✅ Success:', response.data);
 
-      // Success - close dialog and refresh
+      // Success - close dialog first
       handleCloseApproveDialog();
       
-      // Refresh data
-      await Promise.all([
-        fetchUsers(),
-        fetchPendingUsers(),
-      ]);
+      // Small delay to ensure dialog closes smoothly
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Refresh data - ensure we get the latest from server
+      try {
+        console.log('[APPROVE] Refreshing user lists...');
+        const [usersResult, pendingResult] = await Promise.all([
+          fetchUsers(),
+          fetchPendingUsers(),
+        ]);
+        console.log('[APPROVE] ✅ Data refreshed successfully');
+        
+        // Switch to "All Users" tab to show the newly approved user
+        setTimeout(() => {
+          setTabValue(2); // Switch to "All Users" tab
+        }, 300);
+      } catch (refreshError) {
+        console.error('[APPROVE] ⚠️ Error refreshing data:', refreshError);
+        // Still show success even if refresh fails
+      }
 
-      // Show success message briefly
+      // Clear any errors
       setError(null);
       
     } catch (error: any) {

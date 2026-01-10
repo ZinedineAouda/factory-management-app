@@ -215,17 +215,82 @@ const RegisterPage: React.FC = () => {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!isFormValid) {
-      // Mark all fields as touched to show validation errors
-      setTouched({
-        username: true,
-        password: true,
-        confirmPassword: true,
-        registrationCode: true,
+    // Prevent double submission
+    if (loading) {
+      console.log('[REGISTER] Already submitting, ignoring...');
+      return;
+    }
+
+    // Mark all fields as touched to show validation errors
+    const allTouched = {
+      username: true,
+      password: true,
+      confirmPassword: true,
+      registrationCode: true,
+    };
+    setTouched(allTouched);
+
+    // Basic validation
+    if (!formData.username.trim() || formData.username.trim().length < 3) {
+      console.log('[REGISTER] Username validation failed');
+      return;
+    }
+
+    if (!formData.password || formData.password.length < 6) {
+      console.log('[REGISTER] Password validation failed');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      console.log('[REGISTER] Password match validation failed');
+      return;
+    }
+
+    if (!formData.registrationCode.trim()) {
+      console.log('[REGISTER] Registration code validation failed');
+      return;
+    }
+
+    // If username hasn't been checked yet, check it now
+    if (usernameStatus.available === null && !usernameStatus.checking) {
+      console.log('[REGISTER] Checking username availability...');
+      await checkUsernameAvailability(formData.username.trim());
+      // Wait for check to complete
+      await new Promise(resolve => setTimeout(resolve, 600));
+    }
+
+    // If registration code hasn't been checked yet, check it now
+    if (registrationCodeStatus.valid === null && !registrationCodeStatus.checking) {
+      console.log('[REGISTER] Checking registration code...');
+      await checkRegistrationCode(formData.registrationCode.trim());
+      // Wait for check to complete
+      await new Promise(resolve => setTimeout(resolve, 600));
+    }
+
+    // Final validation - check if form is valid now
+    const finalIsValid = (
+      formData.username.trim().length >= 3 &&
+      usernameStatus.available === true &&
+      !usernameStatus.checking &&
+      formData.password.length >= 6 &&
+      formData.password === formData.confirmPassword &&
+      formData.registrationCode.trim().length > 0 &&
+      registrationCodeStatus.valid === true &&
+      !registrationCodeStatus.checking
+    );
+
+    if (!finalIsValid) {
+      console.log('[REGISTER] Final validation failed:', {
+        usernameValid: usernameStatus.available === true,
+        codeValid: registrationCodeStatus.valid === true,
+        usernameChecking: usernameStatus.checking,
+        codeChecking: registrationCodeStatus.checking,
       });
       return;
     }
 
+    console.log('[REGISTER] Submitting registration...');
+    // Submit registration
     dispatch(
       register({
         username: formData.username.trim(),
@@ -233,7 +298,7 @@ const RegisterPage: React.FC = () => {
         registrationCode: formData.registrationCode.trim(),
       })
     );
-  }, [formData, isFormValid, dispatch]);
+  }, [formData, loading, usernameStatus, registrationCodeStatus, checkUsernameAvailability, checkRegistrationCode, dispatch]);
 
   const togglePasswordVisibility = useCallback(() => {
     setShowPassword(prev => !prev);
