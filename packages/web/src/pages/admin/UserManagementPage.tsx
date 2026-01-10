@@ -170,8 +170,10 @@ const UserManagementPage: React.FC = () => {
   const handleOpenApproveDialog = (user: User) => {
     setSelectedUser(user);
     // Set default role - use first non-admin role, or 'worker' as fallback
-    const defaultRole = roles.find(r => r.role !== 'admin')?.role || 'worker';
-    setSelectedRole(user.role || defaultRole);
+    const defaultRole = roles.find(r => r && r.role && r.role !== 'admin')?.role || 'worker';
+    // Ensure we have a valid role string
+    const initialRole = (user.role && String(user.role).trim()) || defaultRole;
+    setSelectedRole(initialRole);
     setSelectedDepartmentId('');
     setSelectedGroupId('');
     setApproveDialogOpen(true);
@@ -183,7 +185,7 @@ const UserManagementPage: React.FC = () => {
     setSelectedUser(null);
     setSelectedDepartmentId('');
     setSelectedGroupId('');
-    const defaultRole = roles.find(r => r.role !== 'admin')?.role || 'worker';
+    const defaultRole = roles.find(r => r && r.role && r.role !== 'admin')?.role || 'worker';
     setSelectedRole(defaultRole);
     setError(null);
   }, [roles]);
@@ -200,14 +202,35 @@ const UserManagementPage: React.FC = () => {
       return;
     }
 
+    // Ensure roles are loaded
+    if (!roles || roles.length === 0) {
+      setError('❌ Roles are not loaded yet. Please wait and try again.');
+      setApproving(false);
+      return;
+    }
+
     // Start approval process
     setError(null);
     setApproving(true);
 
     try {
       // Prepare payload - validate against dynamic roles
-      const roleString = String(selectedRole).toLowerCase().trim();
-      const validRoleNames = roles.map(r => r.role.toLowerCase());
+      const roleString = String(selectedRole || '').toLowerCase().trim();
+      if (!roleString) {
+        setError('❌ Invalid role selected. Please select a valid role.');
+        setApproving(false);
+        return;
+      }
+
+      const validRoleNames = roles
+        .filter(r => r && r.role) // Filter out null/undefined roles
+        .map(r => String(r.role).toLowerCase());
+      
+      if (validRoleNames.length === 0) {
+        setError('❌ No valid roles found. Please check role configuration.');
+        setApproving(false);
+        return;
+      }
       
       if (!validRoleNames.includes(roleString)) {
         setError(`❌ Invalid role: ${roleString}. Must be one of: ${validRoleNames.join(', ')}`);
@@ -260,7 +283,7 @@ const UserManagementPage: React.FC = () => {
         
         // Switch to appropriate tab based on role (dynamic)
         setTimeout(() => {
-          const roleIndex = roles.findIndex(r => r.role.toLowerCase() === roleString);
+          const roleIndex = roles.findIndex(r => r && r.role && String(r.role).toLowerCase() === roleString);
           if (roleIndex !== -1) {
             // Tab 0 is Pending, so role tabs start at index 1
             setTabValue(roleIndex + 1);
@@ -1130,28 +1153,30 @@ const UserManagementPage: React.FC = () => {
                 },
               }}
             >
-              {roles.map((role) => (
-                <MenuItem key={role.role} value={role.role}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        backgroundColor: getRoleColor(role.role),
-                      }}
-                    />
-                    <Box>
-                      <Typography>{getRoleDisplayName(role)}</Typography>
-                      <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
-                        {role.max_data_reach === 'all' ? 'Full system access' :
-                         role.max_data_reach === 'department' ? 'Department access' :
-                         role.max_data_reach === 'group' ? 'Group access' : 'Basic access'}
-                      </Typography>
+              {roles
+                .filter(role => role && role.role) // Filter out null/undefined roles
+                .map((role) => (
+                  <MenuItem key={role.role} value={role.role}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: getRoleColor(role.role),
+                        }}
+                      />
+                      <Box>
+                        <Typography>{getRoleDisplayName(role)}</Typography>
+                        <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
+                          {role.max_data_reach === 'all' ? 'Full system access' :
+                           role.max_data_reach === 'department' ? 'Department access' :
+                           role.max_data_reach === 'group' ? 'Group access' : 'Basic access'}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Box>
-                </MenuItem>
-              ))}
+                  </MenuItem>
+                ))}
             </Select>
             {rolesLoading && (
               <Typography variant="caption" sx={{ color: colors.neutral[500], mt: 0.5 }}>
@@ -1309,21 +1334,23 @@ const UserManagementPage: React.FC = () => {
               label="Role"
               disabled={rolesLoading}
             >
-              {roles.map((role) => (
-                <MenuItem key={role.role} value={role.role}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        backgroundColor: getRoleColor(role.role),
-                      }}
-                    />
-                    {getRoleDisplayName(role)}
-                  </Box>
-                </MenuItem>
-              ))}
+              {roles
+                .filter(role => role && role.role) // Filter out null/undefined roles
+                .map((role) => (
+                  <MenuItem key={role.role} value={role.role}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: getRoleColor(role.role),
+                        }}
+                      />
+                      {getRoleDisplayName(role)}
+                    </Box>
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}>
@@ -1447,21 +1474,23 @@ const UserManagementPage: React.FC = () => {
               }}
             >
               <MenuItem value="all">All Roles</MenuItem>
-              {roles.map((role) => (
-                <MenuItem key={role.role} value={role.role}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        backgroundColor: getRoleColor(role.role),
-                      }}
-                    />
-                    {getRoleDisplayName(role)}
-                  </Box>
-                </MenuItem>
-              ))}
+              {roles
+                .filter(role => role && role.role) // Filter out null/undefined roles
+                .map((role) => (
+                  <MenuItem key={role.role} value={role.role}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: getRoleColor(role.role),
+                        }}
+                      />
+                      {getRoleDisplayName(role)}
+                    </Box>
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}>
