@@ -218,17 +218,49 @@ const UserManagementPage: React.FC = () => {
     setApproving(true);
 
     try {
-      // Prepare payload - validate against dynamic roles
-      const roleString = String(selectedRole || '').toLowerCase().trim();
+      // Prepare payload - validate against dynamic roles with comprehensive null checks
+      let roleString: string;
+      try {
+        roleString = String(selectedRole || '').toLowerCase().trim();
+      } catch (e) {
+        console.error('[APPROVE] Error converting role to string:', e, selectedRole);
+        setError('❌ Invalid role selected. Please select a valid role.');
+        setApproving(false);
+        return;
+      }
+      
       if (!roleString) {
         setError('❌ Invalid role selected. Please select a valid role.');
         setApproving(false);
         return;
       }
 
-      const validRoleNames = roles
-        .filter(r => r && r.role) // Filter out null/undefined roles
-        .map(r => String(r.role).toLowerCase());
+      // Safely extract valid role names with comprehensive filtering
+      let validRoleNames: string[] = [];
+      try {
+        validRoleNames = roles
+          .filter(r => {
+            // Comprehensive null/undefined/type checking
+            if (!r) return false;
+            if (!r.role) return false;
+            if (typeof r.role !== 'string') return false;
+            return r.role.trim().length > 0;
+          })
+          .map(r => {
+            try {
+              return String(r.role).toLowerCase().trim();
+            } catch (e) {
+              console.error('[APPROVE] Error processing role:', e, r);
+              return null;
+            }
+          })
+          .filter((role): role is string => role !== null && role.length > 0);
+      } catch (e) {
+        console.error('[APPROVE] Error processing roles array:', e, roles);
+        setError('❌ Error processing roles. Please refresh the page and try again.');
+        setApproving(false);
+        return;
+      }
       
       if (validRoleNames.length === 0) {
         setError('❌ No valid roles found. Please check role configuration.');
@@ -287,13 +319,26 @@ const UserManagementPage: React.FC = () => {
         
         // Switch to appropriate tab based on role (dynamic)
         setTimeout(() => {
-          const roleIndex = roles.findIndex(r => r && r.role && String(r.role).toLowerCase() === roleString);
-          if (roleIndex !== -1) {
-            // Tab 0 is Pending, so role tabs start at index 1
-            setTabValue(roleIndex + 1);
-          } else {
-            // Switch to "All Users" tab (last tab)
-            setTabValue(tabs.length - 1);
+          try {
+            const roleIndex = roles.findIndex(r => {
+              if (!r || !r.role) return false;
+              try {
+                return String(r.role).toLowerCase() === roleString;
+              } catch (e) {
+                console.error('[APPROVE] Error comparing role:', e, r);
+                return false;
+              }
+            });
+            if (roleIndex !== -1) {
+              // Tab 0 is Pending, so role tabs start at index 1
+              setTabValue(roleIndex + 1);
+            } else {
+              // Switch to "All Users" tab (last tab)
+              setTabValue(tabs.length - 1);
+            }
+          } catch (e) {
+            console.error('[APPROVE] Error switching tabs:', e);
+            // Don't fail the approval if tab switching fails
           }
         }, 300);
       } catch (refreshError) {
@@ -613,11 +658,12 @@ const UserManagementPage: React.FC = () => {
     }
     
     // Search filter - only apply if search query exists
-    if (searchQuery.trim().length > 0) {
+    if (searchQuery && searchQuery.trim().length > 0) {
+      const searchLower = String(searchQuery || '').toLowerCase();
       const matchesSearch =
-        ((user as any).username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-        (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-        (user.departmentName?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+        ((user as any).username && String((user as any).username).toLowerCase().includes(searchLower)) ||
+        (user.email && String(user.email).toLowerCase().includes(searchLower)) ||
+        (user.departmentName && String(user.departmentName).toLowerCase().includes(searchLower));
       
       if (!matchesSearch) return false;
     }

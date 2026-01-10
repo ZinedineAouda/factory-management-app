@@ -475,9 +475,27 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
     }
 
     // Step 3: Normalize and validate role dynamically against database
-    const normalizedRole = String(role).toLowerCase().trim();
+    const normalizedRole = String(role || '').toLowerCase().trim();
+    if (!normalizedRole) {
+      console.error(`[APPROVE] Empty role parameter`);
+      return res.status(400).json({ 
+        error: 'Role is required and cannot be empty',
+        code: 'EMPTY_ROLE'
+      });
+    }
+    
     const dbRoles = await dbAll('SELECT role FROM role_permissions');
-    const validRoleNames = dbRoles.map((r: any) => r.role.toLowerCase());
+    const validRoleNames = dbRoles
+      .filter((r: any) => r && r.role && typeof r.role === 'string')
+      .map((r: any) => String(r.role).toLowerCase());
+    
+    if (validRoleNames.length === 0) {
+      console.error(`[APPROVE] No valid roles found in database`);
+      return res.status(500).json({ 
+        error: 'No valid roles configured in the system',
+        code: 'NO_ROLES_CONFIGURED'
+      });
+    }
     
     if (!validRoleNames.includes(normalizedRole)) {
       console.error(`[APPROVE] Invalid role: ${normalizedRole}`);
@@ -835,10 +853,25 @@ router.put('/users/:id/role', authenticate, requireRole(['admin']), async (req: 
     }
 
     // Validate role dynamically against database
-    const validRoles = await dbAll('SELECT role FROM role_permissions');
-    const validRoleNames = validRoles.map((r: any) => r.role.toLowerCase());
+    if (!role || typeof role !== 'string') {
+      return res.status(400).json({ 
+        error: 'Role is required and must be a string'
+      });
+    }
     
-    if (!role || !validRoleNames.includes(role.toLowerCase())) {
+    const validRoles = await dbAll('SELECT role FROM role_permissions');
+    const validRoleNames = validRoles
+      .filter((r: any) => r && r.role && typeof r.role === 'string')
+      .map((r: any) => String(r.role).toLowerCase());
+    
+    if (validRoleNames.length === 0) {
+      return res.status(500).json({ 
+        error: 'No valid roles configured in the system'
+      });
+    }
+    
+    const normalizedRole = String(role).toLowerCase().trim();
+    if (!validRoleNames.includes(normalizedRole)) {
       return res.status(400).json({ 
         error: `Invalid role. Must be one of: ${validRoleNames.join(', ')}` 
       });
@@ -852,7 +885,7 @@ router.put('/users/:id/role', authenticate, requireRole(['admin']), async (req: 
     // Update user role
     try {
       await dbRun('BEGIN TRANSACTION');
-      await dbRun('UPDATE users SET role = ? WHERE id = ?', [role.toLowerCase(), id]);
+      await dbRun('UPDATE users SET role = ? WHERE id = ?', [normalizedRole, id]);
       await dbRun('COMMIT');
     } catch (txError: any) {
       await dbRun('ROLLBACK').catch(() => {});
