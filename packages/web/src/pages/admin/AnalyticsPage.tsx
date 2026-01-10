@@ -17,6 +17,8 @@ import {
   CheckCircle,
   Schedule,
   Refresh,
+  LocalShipping,
+  Inventory,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { StatCard } from '../../components/ui';
@@ -26,14 +28,11 @@ import { ApiEndpoints } from '../../api/endpoints-override';
 import { RootState } from '../../store';
 
 interface ProductionAnalytics {
-  totalTasks: number;
-  completedTasks: number;
-  inProgressTasks: number;
-  pendingTasks: number;
-  completionRate: number;
-  averageProgress: number;
-  tasksByProduct: Array<{ productName: string; count: number }>;
-  tasksByGroup: Array<{ groupName: string; count: number }>;
+  totalDeliveries: number;
+  totalAmount: number;
+  deliveriesByProduct: Array<{ productName: string; deliveryCount: number; totalAmount: number }>;
+  deliveriesByWorker: Array<{ workerName: string; deliveryCount: number; totalAmount: number }>;
+  deliveriesByDate: Array<{ date: string; amount: number }>;
 }
 
 interface MaintenanceAnalytics {
@@ -66,14 +65,11 @@ const AnalyticsPage: React.FC = () => {
         });
         const data = response.data || {};
         setProductionData({
-          totalTasks: data.totalTasks || 0,
-          completedTasks: data.completedTasks || 0,
-          inProgressTasks: data.inProgressTasks || 0,
-          pendingTasks: data.pendingTasks || 0,
-          completionRate: data.completionRate || 0,
-          averageProgress: data.averageProgress || 0,
-          tasksByProduct: data.tasksByProduct || [],
-          tasksByGroup: data.tasksByGroup || [],
+          totalDeliveries: data.totalDeliveries || 0,
+          totalAmount: data.totalAmount || 0,
+          deliveriesByProduct: data.deliveriesByProduct || [],
+          deliveriesByWorker: data.deliveriesByWorker || [],
+          deliveriesByDate: data.deliveriesByDate || [],
         });
       } else {
         const response = await axios.get(ApiEndpoints.ANALYTICS.MAINTENANCE, {
@@ -91,14 +87,11 @@ const AnalyticsPage: React.FC = () => {
       setError(err.response?.data?.error || err.message || 'Failed to fetch analytics');
       if (tabValue === 0) {
         setProductionData({
-          totalTasks: 0,
-          completedTasks: 0,
-          inProgressTasks: 0,
-          pendingTasks: 0,
-          completionRate: 0,
-          averageProgress: 0,
-          tasksByProduct: [],
-          tasksByGroup: [],
+          totalDeliveries: 0,
+          totalAmount: 0,
+          deliveriesByProduct: [],
+          deliveriesByWorker: [],
+          deliveriesByDate: [],
         });
       } else {
         setMaintenanceData({
@@ -176,34 +169,36 @@ const AnalyticsPage: React.FC = () => {
           <Grid container spacing={3} sx={{ mb: 4 }}>
             <Grid item xs={12} sm={6} lg={3}>
               <StatCard
-                title="Total Tasks"
-                value={productionData.totalTasks}
-                icon={<Assignment />}
+                title="Total Deliveries"
+                value={productionData.totalDeliveries}
+                icon={<LocalShipping />}
                 color="primary"
               />
             </Grid>
             <Grid item xs={12} sm={6} lg={3}>
               <StatCard
-                title="Completed"
-                value={productionData.completedTasks}
+                title="Total Amount"
+                value={productionData.totalAmount.toLocaleString()}
                 icon={<CheckCircle />}
                 color="success"
               />
             </Grid>
             <Grid item xs={12} sm={6} lg={3}>
               <StatCard
-                title="In Progress"
-                value={productionData.inProgressTasks}
-                icon={<Schedule />}
-                color="warning"
+                title="Avg per Delivery"
+                value={productionData.totalDeliveries > 0 
+                  ? (productionData.totalAmount / productionData.totalDeliveries).toFixed(1)
+                  : '0'}
+                icon={<TrendingUp />}
+                color="info"
               />
             </Grid>
             <Grid item xs={12} sm={6} lg={3}>
               <StatCard
-                title="Completion Rate"
-                value={`${productionData.completionRate.toFixed(1)}%`}
-                icon={<TrendingUp />}
-                color="info"
+                title="Products"
+                value={productionData.deliveriesByProduct.length}
+                icon={<Inventory />}
+                color="warning"
               />
             </Grid>
           </Grid>
@@ -220,23 +215,28 @@ const AnalyticsPage: React.FC = () => {
                 }}
               >
                 <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 3 }}>
-                  Tasks by Product
+                  Deliveries by Product
                 </Typography>
-                {productionData.tasksByProduct.length > 0 ? (
+                {productionData.deliveriesByProduct.length > 0 ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {productionData.tasksByProduct.map((item, index) => (
+                    {productionData.deliveriesByProduct.map((item, index) => (
                       <Box key={index}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                           <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[300] }}>
-                            {item.productName || 'Unassigned'}
+                            {item.productName || 'Unknown'}
                           </Typography>
-                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100] }}>
-                            {item.count}
-                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100] }}>
+                              {item.deliveryCount} deliveries
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.success[400] }}>
+                              {item.totalAmount.toLocaleString()}
+                            </Typography>
+                          </Box>
                         </Box>
                         <LinearProgress
                           variant="determinate"
-                          value={productionData.totalTasks > 0 ? (item.count / productionData.totalTasks) * 100 : 0}
+                          value={productionData.totalAmount > 0 ? (item.totalAmount / productionData.totalAmount) * 100 : 0}
                           sx={{
                             height: 6,
                             borderRadius: 1,
@@ -251,7 +251,7 @@ const AnalyticsPage: React.FC = () => {
                   </Box>
                 ) : (
                   <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[500], textAlign: 'center', py: 4 }}>
-                    No data available
+                    No deliveries yet
                   </Typography>
                 )}
               </Box>
@@ -267,23 +267,28 @@ const AnalyticsPage: React.FC = () => {
                 }}
               >
                 <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 3 }}>
-                  Tasks by Group
+                  Deliveries by Worker
                 </Typography>
-                {productionData.tasksByGroup.length > 0 ? (
+                {productionData.deliveriesByWorker.length > 0 ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {productionData.tasksByGroup.map((item, index) => (
+                    {productionData.deliveriesByWorker.map((item, index) => (
                       <Box key={index}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                           <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[300] }}>
-                            {item.groupName || 'Unassigned'}
+                            {item.workerName || 'Unknown'}
                           </Typography>
-                          <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100] }}>
-                            {item.count}
-                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100] }}>
+                              {item.deliveryCount} deliveries
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.success[400] }}>
+                              {item.totalAmount.toLocaleString()}
+                            </Typography>
+                          </Box>
                         </Box>
                         <LinearProgress
                           variant="determinate"
-                          value={productionData.totalTasks > 0 ? (item.count / productionData.totalTasks) * 100 : 0}
+                          value={productionData.totalAmount > 0 ? (item.totalAmount / productionData.totalAmount) * 100 : 0}
                           sx={{
                             height: 6,
                             borderRadius: 1,
@@ -298,7 +303,7 @@ const AnalyticsPage: React.FC = () => {
                   </Box>
                 ) : (
                   <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[500], textAlign: 'center', py: 4 }}>
-                    No data available
+                    No deliveries yet
                   </Typography>
                 )}
               </Box>

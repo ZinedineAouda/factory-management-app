@@ -20,6 +20,13 @@ import {
   CardContent,
   CardActions,
   Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from '@mui/material';
 import {
   Add,
@@ -29,6 +36,8 @@ import {
   Refresh,
   CloudUpload,
   Image as ImageIcon,
+  LocalShipping,
+  Close,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { EmptyState } from '../../components/ui';
@@ -83,6 +92,11 @@ const ProductsPage: React.FC = () => {
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
+  // Deliveries view for admin
+  const [deliveriesDialogOpen, setDeliveriesDialogOpen] = useState(false);
+  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(false);
 
   useEffect(() => {
     // Safety check: Redirect message if view-only user somehow accesses this page
@@ -128,6 +142,31 @@ const ProductsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchDeliveries = async () => {
+    try {
+      setLoadingDeliveries(true);
+      const response = await axios.get(ApiEndpoints.PRODUCT_DELIVERIES.LIST, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDeliveries(response.data || []);
+    } catch (err: any) {
+      console.error('Fetch deliveries error:', err);
+      setDeliveries([]);
+    } finally {
+      setLoadingDeliveries(false);
+    }
+  };
+
+  const handleOpenDeliveriesDialog = () => {
+    setDeliveriesDialogOpen(true);
+    fetchDeliveries();
+  };
+
+  const handleCloseDeliveriesDialog = () => {
+    setDeliveriesDialogOpen(false);
+    setDeliveries([]);
   };
 
   const handleOpenProductDialog = () => {
@@ -305,6 +344,11 @@ const ProductsPage: React.FC = () => {
       subtitle="Manage production products"
       actions={
         <Box sx={{ display: 'flex', gap: 1.5 }}>
+          {isAdmin && (
+            <Button variant="outlined" startIcon={<LocalShipping />} onClick={handleOpenDeliveriesDialog}>
+              View Deliveries
+            </Button>
+          )}
           <Button variant="outlined" startIcon={<Refresh />} onClick={fetchProducts}>
             Refresh
           </Button>
@@ -568,6 +612,70 @@ const ProductsPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Deliveries Dialog for Admin */}
+      {isAdmin && (
+        <Dialog open={deliveriesDialogOpen} onClose={handleCloseDeliveriesDialog} maxWidth="lg" fullWidth>
+          <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">All Product Deliveries</Typography>
+              <IconButton onClick={handleCloseDeliveriesDialog} size="small">
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {loadingDeliveries ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : deliveries.length === 0 ? (
+              <Alert severity="info" sx={{ mt: 2 }}>No deliveries found.</Alert>
+            ) : (
+              <TableContainer component={Paper} sx={{ mt: 2, backgroundColor: colors.neutral[900], border: `1px solid ${colors.neutral[800]}` }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Product</TableCell>
+                      <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Worker</TableCell>
+                      <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }} align="right">Amount</TableCell>
+                      <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Delivery Date</TableCell>
+                      <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Notes</TableCell>
+                      <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Created At</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {deliveries.map((delivery: any) => (
+                      <TableRow key={delivery.id} hover>
+                        <TableCell sx={{ color: colors.neutral[100] }}>{delivery.product_name || 'Unknown'}</TableCell>
+                        <TableCell sx={{ color: colors.neutral[100] }}>{delivery.worker_username || 'Unknown'}</TableCell>
+                        <TableCell align="right" sx={{ color: colors.success[400], fontWeight: 600 }}>
+                          {delivery.amount?.toLocaleString() || '0'}
+                        </TableCell>
+                        <TableCell sx={{ color: colors.neutral[300] }}>
+                          {delivery.delivery_date ? new Date(delivery.delivery_date).toLocaleDateString() : 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ color: colors.neutral[400], maxWidth: 200 }}>
+                          {delivery.notes || '-'}
+                        </TableCell>
+                        <TableCell sx={{ color: colors.neutral[400] }}>
+                          {delivery.created_at ? new Date(delivery.created_at).toLocaleString() : 'N/A'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDeliveriesDialog}>Close</Button>
+            <Button onClick={fetchDeliveries} variant="outlined" startIcon={<Refresh />}>
+              Refresh
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </PageContainer>
   );
 };
