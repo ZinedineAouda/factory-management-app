@@ -63,7 +63,7 @@ interface WorkerStatistics {
 
 const UserManagementPage: React.FC = () => {
   // Fetch roles dynamically
-  const { roles, loading: rolesLoading, refetch: refetchRoles } = useRoles();
+  const { roles, loading: rolesLoading } = useRoles();
   
   const [users, setUsers] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
