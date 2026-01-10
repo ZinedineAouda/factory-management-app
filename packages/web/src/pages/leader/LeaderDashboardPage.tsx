@@ -4,7 +4,6 @@ import {
   Box,
   Typography,
   Grid,
-  Button,
   alpha,
 } from '@mui/material';
 import {
@@ -12,7 +11,6 @@ import {
   ArrowForward,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
-import { StatCard } from '../../components/ui';
 import { colors } from '../../theme';
 
 const LeaderDashboardPage: React.FC = () => {

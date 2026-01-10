@@ -16,8 +16,6 @@ export interface UserPermissions {
   canEditProducts: boolean;
   canViewReports: boolean;
   canEditReports: boolean;
-  canViewTasks: boolean;
-  canEditTasks: boolean;
   canViewAnalytics: boolean;
   maxDataReach: 'own' | 'department' | 'group' | 'all';
 }

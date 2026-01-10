@@ -9,7 +9,6 @@ import RegisterPage from '../pages/auth/RegisterPage';
 import WorkerDashboardPage from '../pages/worker/WorkerDashboardPage';
 import ProfilePage from '../pages/worker/ProfilePage';
 import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage';
-import OperatorReportPage from '../pages/operator/OperatorReportPage';
 import LeaderDashboardPage from '../pages/leader/LeaderDashboardPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import CodeGenerationPage from '../pages/admin/CodeGenerationPage';

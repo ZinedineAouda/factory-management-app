@@ -13,7 +13,6 @@ import {
   Inventory,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
-import { StatCard } from '../../components/ui';
 import { colors } from '../../theme';
 import { RootState } from '../../store';
 
@@ -22,7 +21,6 @@ const WorkerDashboardPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
 
   const isProduction = user?.departmentName?.toLowerCase() === 'production';
-  const isMaintenance = user?.departmentName?.toLowerCase() === 'maintenance';
 
   const quickActions = isProduction
     ? [

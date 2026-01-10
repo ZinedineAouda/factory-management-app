@@ -59,7 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { permissions, isAdmin, canView, canEdit } = usePermissions();
+  const { permissions, isAdmin, canView } = usePermissions();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   const getNavItems = (): NavItem[] => {

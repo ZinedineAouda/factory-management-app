@@ -93,8 +93,6 @@ const AdminDashboardPage: React.FC = () => {
         setStats({
           totalUsers: usersRes.data?.length || 0,
           totalDepartments: deptsRes.data?.length || 0,
-          totalTasks: 0,
-          completedTasks: 0,
         });
         setRecentActivity(activityRes.data || []);
 
