@@ -149,6 +149,7 @@ const ProductsPage: React.FC = () => {
       return imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     };
     setImagePreview(product.image_url ? getImageUrl(product.image_url) : null);
+    setProductDialogOpen(true); // Open the dialog
     setError(null);
   };
 
@@ -177,6 +178,16 @@ const ProductsPage: React.FC = () => {
   };
 
   const handleSubmitProduct = async () => {
+    // Check permissions before submitting
+    if (editingProduct && !canEditProducts) {
+      setError('You do not have permission to edit products.');
+      return;
+    }
+    if (!editingProduct && !canEditProducts) {
+      setError('You do not have permission to create products.');
+      return;
+    }
+
     if (!productFormData.name.trim()) {
       setError('Product name is required');
       return;
