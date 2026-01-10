@@ -33,6 +33,9 @@ import {
   Add,
   FilterList,
   Edit,
+  Lock,
+  Visibility,
+  VisibilityOff,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { DataTable, StatusBadge } from '../../components/ui';
@@ -66,6 +69,9 @@ interface WorkerStatistics {
 const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [workers, setWorkers] = useState<User[]>([]);
+  const [operators, setOperators] = useState<User[]>([]);
+  const [leaders, setLeaders] = useState<User[]>([]);
+  const [admins, setAdmins] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -77,11 +83,15 @@ const UserManagementPage: React.FC = () => {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editCredentialsDialogOpen, setEditCredentialsDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.WORKER);
+  const [editingUsername, setEditingUsername] = useState('');
+  const [editingPassword, setEditingPassword] = useState('');
+  const [savingCredentials, setSavingCredentials] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [tabValue, setTabValue] = useState(0);
@@ -112,6 +122,9 @@ const UserManagementPage: React.FC = () => {
       console.log('[FETCH USERS] Received users:', allUsers.length);
       setUsers(allUsers);
       setWorkers(allUsers.filter((u: User) => u.role === UserRole.WORKER));
+      setOperators(allUsers.filter((u: User) => u.role === UserRole.OPERATOR));
+      setLeaders(allUsers.filter((u: User) => u.role === UserRole.LEADER));
+      setAdmins(allUsers.filter((u: User) => u.role === UserRole.ADMIN));
     } catch (error: any) {
       console.error('[FETCH USERS] Error:', error);
       setError('Failed to fetch users');
@@ -222,9 +235,14 @@ const UserManagementPage: React.FC = () => {
         ]);
         console.log('[APPROVE] ✅ Data refreshed successfully');
         
-        // Switch to "All Users" tab to show the newly approved user
+        // Switch to appropriate tab based on role
         setTimeout(() => {
-          setTabValue(2); // Switch to "All Users" tab
+          const approvedRole = normalizedRole;
+          if (approvedRole === 'worker') setTabValue(1);
+          else if (approvedRole === 'operator') setTabValue(2);
+          else if (approvedRole === 'leader') setTabValue(3);
+          else if (approvedRole === 'admin') setTabValue(4);
+          else setTabValue(5); // All Users
         }, 300);
       } catch (refreshError) {
         console.error('[APPROVE] ⚠️ Error refreshing data:', refreshError);
@@ -446,7 +464,80 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
-  const displayUsers = tabValue === 0 ? pendingUsers : tabValue === 1 ? workers : users;
+  const handleSaveCredentials = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setSavingCredentials(true);
+      setError(null);
+
+      const updates: Promise<any>[] = [];
+
+      // Update username if changed
+      if (editingUsername.trim() && editingUsername.trim() !== (selectedUser as any).username) {
+        if (editingUsername.trim().length < 3) {
+          setError('Username must be at least 3 characters long');
+          setSavingCredentials(false);
+          return;
+        }
+        updates.push(
+          axios.put(
+            ApiEndpoints.USERS.UPDATE_USERNAME(selectedUser.id),
+            { username: editingUsername.trim() },
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+        );
+      }
+
+      // Update password if provided
+      if (editingPassword.trim()) {
+        if (editingPassword.length < 6) {
+          setError('Password must be at least 6 characters long');
+          setSavingCredentials(false);
+          return;
+        }
+        updates.push(
+          axios.put(
+            ApiEndpoints.USERS.UPDATE_PASSWORD(selectedUser.id),
+            { password: editingPassword },
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+        );
+      }
+
+      if (updates.length === 0) {
+        setError('No changes to save');
+        setSavingCredentials(false);
+        return;
+      }
+
+      await Promise.all(updates);
+      setEditCredentialsDialogOpen(false);
+      setEditingUsername('');
+      setEditingPassword('');
+      await fetchUsers();
+      await fetchPendingUsers();
+    } catch (error: any) {
+      console.error('Save credentials error:', error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.details ||
+        error.message ||
+        'Failed to update credentials';
+      setError(errorMessage);
+    } finally {
+      setSavingCredentials(false);
+    }
+  };
+
+  // Tab mapping: 0=Pending, 1=Workers, 2=Operators, 3=Leaders, 4=Admins, 5=All Users
+  const displayUsers = 
+    tabValue === 0 ? pendingUsers :
+    tabValue === 1 ? workers :
+    tabValue === 2 ? operators :
+    tabValue === 3 ? leaders :
+    tabValue === 4 ? admins :
+    users;
   
   // Only apply filters if they've been explicitly set (activeFilters has items) or search query exists
   const hasActiveFilters = activeFilters.size > 0 || searchQuery.trim().length > 0;
@@ -673,6 +764,21 @@ const UserManagementPage: React.FC = () => {
                   <Edit sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
+              <Tooltip title="Edit Username & Password">
+                <IconButton 
+                  size="small" 
+                  onClick={() => {
+                    setSelectedUser(row);
+                    setEditingUsername((row as any).username || '');
+                    setEditingPassword('');
+                    setEditCredentialsDialogOpen(true);
+                    setError(null);
+                  }}
+                  sx={{ color: colors.info[500] }}
+                >
+                  <Lock sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
               {row.id !== currentUser?.id && (
                 <Tooltip title="Delete User">
                   <IconButton size="small" onClick={() => handleOpenDeleteDialog(row)} sx={{ color: colors.error[500] }}>
@@ -745,6 +851,9 @@ const UserManagementPage: React.FC = () => {
             } 
           />
           <Tab label={`Workers (${workers.length})`} />
+          <Tab label={`Operators (${operators.length})`} />
+          <Tab label={`Leaders (${leaders.length})`} />
+          <Tab label={`Admins (${admins.length})`} />
           <Tab label={`All Users (${users.length})`} />
         </Tabs>
 
@@ -814,7 +923,15 @@ const UserManagementPage: React.FC = () => {
         emptyMessage={
           tabValue === 0 
             ? 'No pending users. All registrations have been approved.' 
-            : `No ${tabValue === 1 ? 'workers' : 'users'} found`
+            : tabValue === 1
+            ? 'No workers found'
+            : tabValue === 2
+            ? 'No operators found'
+            : tabValue === 3
+            ? 'No leaders found'
+            : tabValue === 4
+            ? 'No admins found'
+            : 'No users found'
         }
       />
 
@@ -1412,6 +1529,120 @@ const UserManagementPage: React.FC = () => {
             }}
           >
             Apply Filters
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Credentials Dialog */}
+      <Dialog 
+        open={editCredentialsDialogOpen} 
+        onClose={() => {
+          if (!savingCredentials) {
+            setEditCredentialsDialogOpen(false);
+            setEditingUsername('');
+            setEditingPassword('');
+            setError(null);
+          }
+        }}
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: colors.neutral[900],
+            border: `1px solid ${colors.neutral[800]}`,
+            borderRadius: 2,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: colors.neutral[100], borderBottom: `1px solid ${colors.neutral[800]}` }}>
+          Edit User Credentials
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
+          <Box sx={{ 
+            p: 2, 
+            mb: 3, 
+            backgroundColor: colors.neutral[950], 
+            borderRadius: 1,
+            border: `1px solid ${colors.neutral[800]}`,
+          }}>
+            <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mb: 1 }}>
+              Editing credentials for:
+            </Typography>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100] }}>
+              {selectedUser?.email || (selectedUser as any)?.username || 'Unknown User'}
+            </Typography>
+          </Box>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              Leave fields empty if you don't want to change them. Username must be at least 3 characters, password must be at least 6 characters.
+            </Typography>
+          </Alert>
+          <TextField
+            fullWidth
+            label="Username"
+            value={editingUsername}
+            onChange={(e) => {
+              setEditingUsername(e.target.value);
+              setError(null);
+            }}
+            disabled={savingCredentials}
+            sx={{ mb: 2 }}
+            helperText={editingUsername.trim().length > 0 && editingUsername.trim().length < 3 ? 'Username must be at least 3 characters' : ''}
+            error={editingUsername.trim().length > 0 && editingUsername.trim().length < 3}
+          />
+          <TextField
+            fullWidth
+            type="password"
+            label="New Password"
+            value={editingPassword}
+            onChange={(e) => {
+              setEditingPassword(e.target.value);
+              setError(null);
+            }}
+            disabled={savingCredentials}
+            helperText={editingPassword.length > 0 && editingPassword.length < 6 ? 'Password must be at least 6 characters' : 'Leave empty to keep current password'}
+            error={editingPassword.length > 0 && editingPassword.length < 6}
+            placeholder="Enter new password or leave empty"
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${colors.neutral[800]}` }}>
+          <Button 
+            onClick={() => {
+              setEditCredentialsDialogOpen(false);
+              setEditingUsername('');
+              setEditingPassword('');
+              setError(null);
+            }}
+            variant="outlined"
+            disabled={savingCredentials}
+            sx={{ color: colors.neutral[300], borderColor: colors.neutral[700] }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSaveCredentials}
+            variant="contained"
+            disabled={savingCredentials || (editingUsername.trim().length > 0 && editingUsername.trim().length < 3) || (editingPassword.length > 0 && editingPassword.length < 6)}
+            sx={{
+              backgroundColor: colors.primary[500],
+              '&:hover': {
+                backgroundColor: colors.primary[600],
+              },
+            }}
+          >
+            {savingCredentials ? (
+              <>
+                <CircularProgress size={16} sx={{ mr: 1 }} />
+                Saving...
+              </>
+            ) : (
+              'Save Changes'
+            )}
           </Button>
         </DialogActions>
       </Dialog>

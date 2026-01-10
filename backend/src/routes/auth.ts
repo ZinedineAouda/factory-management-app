@@ -814,6 +814,81 @@ router.put('/users/:id/role', authenticate, requireRole(['admin']), async (req: 
   }
 });
 
+// Update user username (Admin only)
+router.put('/users/:id/username', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { username } = req.body;
+
+    if (!username || typeof username !== 'string' || username.trim().length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters long' });
+    }
+
+    const newUsername = username.trim();
+
+    // Validate user exists
+    const existingUser = await dbGet('SELECT id, username FROM users WHERE id = ?', [id]);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if username already exists (excluding current user)
+    const usernameTaken = await dbGet('SELECT id FROM users WHERE username = ? AND id != ?', [newUsername, id]);
+    if (usernameTaken) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    // Update username
+    await dbRun('UPDATE users SET username = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newUsername, id]);
+
+    // Fetch updated user
+    const updatedUser = await getUserWithDepartment(id);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found after update' });
+    }
+
+    res.json(formatUserResponse(updatedUser));
+  } catch (error: any) {
+    console.error('Update user username error:', error);
+    res.status(500).json({
+      error: 'Failed to update username',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Update user password (Admin only)
+router.put('/users/:id/password', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    // Validate user exists
+    const existingUser = await dbGet('SELECT id FROM users WHERE id = ?', [id]);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update password
+    await dbRun('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [hashedPassword, id]);
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error: any) {
+    console.error('Update user password error:', error);
+    res.status(500).json({
+      error: 'Failed to update password',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // Update user group (Admin only)
 router.put('/users/:id/group', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {

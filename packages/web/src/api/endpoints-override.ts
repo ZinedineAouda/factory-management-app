@@ -67,6 +67,8 @@ export const ApiEndpoints = {
     UPDATE_DEPARTMENT: (id: string) => `${API_BASE_URL}/auth/users/${id}/department`,
     UPDATE_GROUP: (id: string) => `${API_BASE_URL}/auth/users/${id}/group`,
     UPDATE_ROLE: (id: string) => `${API_BASE_URL}/auth/users/${id}/role`,
+    UPDATE_USERNAME: (id: string) => `${API_BASE_URL}/auth/users/${id}/username`,
+    UPDATE_PASSWORD: (id: string) => `${API_BASE_URL}/auth/users/${id}/password`,
     STATISTICS: (id: string) => `${API_BASE_URL}/auth/users/${id}/statistics`,
     DELETE: (id: string) => `${API_BASE_URL}/auth/users/${id}`,
   },
