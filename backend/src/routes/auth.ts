@@ -474,17 +474,18 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
       });
     }
 
-    // Step 3: Normalize and validate role
+    // Step 3: Normalize and validate role dynamically against database
     const normalizedRole = String(role).toLowerCase().trim();
-    const validRoles = ['worker', 'operator', 'leader', 'admin'];
+    const dbRoles = await dbAll('SELECT role FROM role_permissions');
+    const validRoleNames = dbRoles.map((r: any) => r.role.toLowerCase());
     
-    if (!validRoles.includes(normalizedRole)) {
+    if (!validRoleNames.includes(normalizedRole)) {
       console.error(`[APPROVE] Invalid role: ${normalizedRole}`);
       return res.status(400).json({ 
-        error: `Invalid role. Must be one of: ${validRoles.join(', ')}`,
+        error: `Invalid role. Must be one of: ${validRoleNames.join(', ')}`,
         code: 'INVALID_ROLE',
         received: role,
-        validRoles
+        validRoles: validRoleNames
       });
     }
 
@@ -821,7 +822,7 @@ router.put('/users/:id/department', authenticate, requireRole(['admin']), async 
   }
 });
 
-// Update user role (Admin only)
+// Update user role (Admin only) - Validates against dynamic roles from database
 router.put('/users/:id/role', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
@@ -833,10 +834,14 @@ router.put('/users/:id/role', authenticate, requireRole(['admin']), async (req: 
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Validate role
-    const validRoles = ['admin', 'worker', 'operator', 'leader'];
-    if (!role || !validRoles.includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Must be: admin, worker, operator, or leader' });
+    // Validate role dynamically against database
+    const validRoles = await dbAll('SELECT role FROM role_permissions');
+    const validRoleNames = validRoles.map((r: any) => r.role.toLowerCase());
+    
+    if (!role || !validRoleNames.includes(role.toLowerCase())) {
+      return res.status(400).json({ 
+        error: `Invalid role. Must be one of: ${validRoleNames.join(', ')}` 
+      });
     }
 
     // Prevent changing own role
@@ -847,7 +852,7 @@ router.put('/users/:id/role', authenticate, requireRole(['admin']), async (req: 
     // Update user role
     try {
       await dbRun('BEGIN TRANSACTION');
-      await dbRun('UPDATE users SET role = ? WHERE id = ?', [role, id]);
+      await dbRun('UPDATE users SET role = ? WHERE id = ?', [role.toLowerCase(), id]);
       await dbRun('COMMIT');
     } catch (txError: any) {
       await dbRun('ROLLBACK').catch(() => {});

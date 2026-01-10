@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import {
   Box,
@@ -41,7 +41,8 @@ import { colors } from '../../theme';
 import axios from 'axios';
 import { ApiEndpoints } from '../../api/endpoints-override';
 import { RootState } from '../../store';
-import { User, UserRole } from '@factory-app/shared';
+import { User } from '@factory-app/shared';
+import { useRoles, getRoleDisplayName, getRoleColor } from '../../hooks/useRoles';
 
 
 interface Department {
@@ -61,11 +62,10 @@ interface WorkerStatistics {
 }
 
 const UserManagementPage: React.FC = () => {
+  // Fetch roles dynamically
+  const { roles, loading: rolesLoading, refetch: refetchRoles } = useRoles();
+  
   const [users, setUsers] = useState<User[]>([]);
-  const [workers, setWorkers] = useState<User[]>([]);
-  const [operators, setOperators] = useState<User[]>([]);
-  const [leaders, setLeaders] = useState<User[]>([]);
-  const [admins, setAdmins] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -82,7 +82,7 @@ const UserManagementPage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.WORKER);
+  const [selectedRole, setSelectedRole] = useState<string>('worker');
   const [editingUsername, setEditingUsername] = useState('');
   const [editingPassword, setEditingPassword] = useState('');
   const [savingCredentials, setSavingCredentials] = useState(false);
@@ -97,6 +97,35 @@ const UserManagementPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const { token, user: currentUser } = useSelector((state: RootState) => state.auth);
+
+  // Dynamic user grouping by role
+  const usersByRole = useMemo(() => {
+    const grouped: Record<string, User[]> = {};
+    roles.forEach(role => {
+      grouped[role.role] = users.filter(u => u.role === role.role);
+    });
+    return grouped;
+  }, [users, roles]);
+
+  // Generate tab configuration dynamically
+  // Tab 0 = Pending, Tab 1 to N = Roles, Tab N+1 = All Users
+  const tabs = useMemo(() => {
+    const tabList: { label: string; role: string | null; count: number }[] = [
+      { label: 'Pending Approval', role: null, count: pendingUsers.length },
+    ];
+    
+    roles.forEach(role => {
+      tabList.push({
+        label: getRoleDisplayName(role),
+        role: role.role,
+        count: usersByRole[role.role]?.length || 0,
+      });
+    });
+    
+    tabList.push({ label: 'All Users', role: 'all', count: users.length });
+    
+    return tabList;
+  }, [roles, pendingUsers.length, users.length, usersByRole]);
 
   useEffect(() => {
     fetchUsers();
@@ -115,10 +144,7 @@ const UserManagementPage: React.FC = () => {
       const allUsers = response.data || [];
       console.log('[FETCH USERS] Received users:', allUsers.length);
       setUsers(allUsers);
-      setWorkers(allUsers.filter((u: User) => u.role === UserRole.WORKER));
-      setOperators(allUsers.filter((u: User) => u.role === UserRole.OPERATOR));
-      setLeaders(allUsers.filter((u: User) => u.role === UserRole.LEADER));
-      setAdmins(allUsers.filter((u: User) => u.role === UserRole.ADMIN));
+      // Users are now grouped dynamically via usersByRole memo
     } catch (error: any) {
       console.error('[FETCH USERS] Error:', error);
       setError('Failed to fetch users');
@@ -143,7 +169,9 @@ const UserManagementPage: React.FC = () => {
 
   const handleOpenApproveDialog = (user: User) => {
     setSelectedUser(user);
-    setSelectedRole((user.role as UserRole) || UserRole.WORKER);
+    // Set default role - use first non-admin role, or 'worker' as fallback
+    const defaultRole = roles.find(r => r.role !== 'admin')?.role || 'worker';
+    setSelectedRole(user.role || defaultRole);
     setSelectedDepartmentId('');
     setSelectedGroupId('');
     setApproveDialogOpen(true);
@@ -155,9 +183,10 @@ const UserManagementPage: React.FC = () => {
     setSelectedUser(null);
     setSelectedDepartmentId('');
     setSelectedGroupId('');
-    setSelectedRole(UserRole.WORKER);
+    const defaultRole = roles.find(r => r.role !== 'admin')?.role || 'worker';
+    setSelectedRole(defaultRole);
     setError(null);
-  }, []);
+  }, [roles]);
 
   const handleApproveUser = useCallback(async () => {
     // Validation
@@ -176,12 +205,12 @@ const UserManagementPage: React.FC = () => {
     setApproving(true);
 
     try {
-      // Prepare payload
+      // Prepare payload - validate against dynamic roles
       const roleString = String(selectedRole).toLowerCase().trim();
-      const validRoles = ['admin', 'worker', 'operator', 'leader'];
+      const validRoleNames = roles.map(r => r.role.toLowerCase());
       
-      if (!validRoles.includes(roleString)) {
-        setError(`❌ Invalid role: ${roleString}. Must be one of: ${validRoles.join(', ')}`);
+      if (!validRoleNames.includes(roleString)) {
+        setError(`❌ Invalid role: ${roleString}. Must be one of: ${validRoleNames.join(', ')}`);
         setApproving(false);
         return;
       }
@@ -229,14 +258,16 @@ const UserManagementPage: React.FC = () => {
         ]);
         console.log('[APPROVE] ✅ Data refreshed successfully');
         
-        // Switch to appropriate tab based on role
+        // Switch to appropriate tab based on role (dynamic)
         setTimeout(() => {
-          const approvedRole = roleString;
-          if (approvedRole === 'worker') setTabValue(1);
-          else if (approvedRole === 'operator') setTabValue(2);
-          else if (approvedRole === 'leader') setTabValue(3);
-          else if (approvedRole === 'admin') setTabValue(4);
-          else setTabValue(5); // All Users
+          const roleIndex = roles.findIndex(r => r.role.toLowerCase() === roleString);
+          if (roleIndex !== -1) {
+            // Tab 0 is Pending, so role tabs start at index 1
+            setTabValue(roleIndex + 1);
+          } else {
+            // Switch to "All Users" tab (last tab)
+            setTabValue(tabs.length - 1);
+          }
         }, 300);
       } catch (refreshError) {
         console.error('[APPROVE] ⚠️ Error refreshing data:', refreshError);
@@ -276,7 +307,7 @@ const UserManagementPage: React.FC = () => {
     } finally {
       setApproving(false);
     }
-  }, [selectedUser, selectedRole, selectedDepartmentId, selectedGroupId, token, handleCloseApproveDialog, fetchUsers, fetchPendingUsers]);
+  }, [selectedUser, selectedRole, selectedDepartmentId, selectedGroupId, token, handleCloseApproveDialog, fetchUsers, fetchPendingUsers, roles, tabs.length]);
 
   // Keyboard shortcuts for approval dialog (must be after handleApproveUser and handleCloseApproveDialog declarations)
   useEffect(() => {
@@ -359,7 +390,7 @@ const UserManagementPage: React.FC = () => {
     setSelectedUser(user);
     setSelectedDepartmentId(user.departmentId || '');
     setSelectedGroupId(user.groupId || '');
-    setSelectedRole(user.role);
+    setSelectedRole(user.role as string);
     setAssignDialogOpen(true);
     setError(null);
   };
@@ -369,7 +400,8 @@ const UserManagementPage: React.FC = () => {
     setSelectedUser(null);
     setSelectedDepartmentId('');
     setSelectedGroupId('');
-    setSelectedRole(UserRole.WORKER);
+    const defaultRole = roles.find(r => r.role !== 'admin')?.role || 'worker';
+    setSelectedRole(defaultRole);
     setError(null);
   };
 
@@ -524,14 +556,19 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
-  // Tab mapping: 0=Pending, 1=Workers, 2=Operators, 3=Leaders, 4=Admins, 5=All Users
-  const displayUsers = 
-    tabValue === 0 ? pendingUsers :
-    tabValue === 1 ? workers :
-    tabValue === 2 ? operators :
-    tabValue === 3 ? leaders :
-    tabValue === 4 ? admins :
-    users;
+  // Dynamic tab mapping: 0=Pending, 1 to N=Roles, N+1=All Users
+  const displayUsers = useMemo(() => {
+    if (tabValue === 0) return pendingUsers;
+    if (tabValue === tabs.length - 1) return users; // Last tab is "All Users"
+    
+    // Role tabs are from index 1 to (tabs.length - 2)
+    const currentTab = tabs[tabValue];
+    if (currentTab && currentTab.role && currentTab.role !== 'all') {
+      return usersByRole[currentTab.role] || [];
+    }
+    
+    return users;
+  }, [tabValue, pendingUsers, users, tabs, usersByRole]);
   
   // Only apply filters if they've been explicitly set (activeFilters has items) or search query exists
   const hasActiveFilters = activeFilters.size > 0 || searchQuery.trim().length > 0;
@@ -634,7 +671,7 @@ const UserManagementPage: React.FC = () => {
       label: '',
       width: 48,
       render: (row: User) =>
-        row.role === UserRole.WORKER ? (
+        row.role === 'worker' ? (
           <IconButton size="small" onClick={() => handleToggleExpand(row.id)}>
             {expandedRows.has(row.id) ? (
               <ExpandLess sx={{ fontSize: 18 }} />
@@ -673,14 +710,22 @@ const UserManagementPage: React.FC = () => {
     {
       id: 'role',
       label: 'Role',
-      width: 100,
-      render: (row: User) => (
-        <StatusBadge
-          status={row.role === 'admin' ? 'primary' : 'success'}
-          label={row.role}
-          dot={false}
-        />
-      ),
+      width: 120,
+      render: (row: User) => {
+        const roleData = roles.find(r => r.role === row.role);
+        return (
+          <Chip
+            label={roleData ? getRoleDisplayName(roleData) : row.role}
+            size="small"
+            sx={{
+              backgroundColor: alpha(getRoleColor(row.role as string), 0.15),
+              color: getRoleColor(row.role as string),
+              fontWeight: 500,
+              fontSize: '0.75rem',
+            }}
+          />
+        );
+      },
     },
     {
       id: 'department',
@@ -817,38 +862,38 @@ const UserManagementPage: React.FC = () => {
         <Tabs
           value={tabValue}
           onChange={(_, newValue) => setTabValue(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
           sx={{
             '& .MuiTabs-indicator': {
               height: 2,
             },
           }}
         >
-          <Tab 
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                Pending Approval
-                {pendingUsers.length > 0 && (
-                  <Chip
-                    label={pendingUsers.length}
-                    size="small"
-                    sx={{
-                      height: 20,
-                      minWidth: 20,
-                      backgroundColor: colors.warning[500],
-                      color: '#fff',
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                    }}
-                  />
-                )}
-              </Box>
-            } 
-          />
-          <Tab label={`Workers (${workers.length})`} />
-          <Tab label={`Operators (${operators.length})`} />
-          <Tab label={`Leaders (${leaders.length})`} />
-          <Tab label={`Admins (${admins.length})`} />
-          <Tab label={`All Users (${users.length})`} />
+          {tabs.map((tab, index) => (
+            <Tab
+              key={tab.role || 'pending'}
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <Chip
+                      label={tab.count}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        minWidth: 20,
+                        backgroundColor: index === 0 ? colors.warning[500] : alpha(getRoleColor(tab.role || 'default'), 0.8),
+                        color: '#fff',
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                      }}
+                    />
+                  )}
+                </Box>
+              }
+            />
+          ))}
         </Tabs>
 
         <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -916,22 +961,16 @@ const UserManagementPage: React.FC = () => {
         rowKey={(row) => row.id}
         emptyMessage={
           tabValue === 0 
-            ? 'No pending users. All registrations have been approved.' 
-            : tabValue === 1
-            ? 'No workers found'
-            : tabValue === 2
-            ? 'No operators found'
-            : tabValue === 3
-            ? 'No leaders found'
-            : tabValue === 4
-            ? 'No admins found'
-            : 'No users found'
+            ? 'No pending users. All registrations have been approved.'
+            : tabValue === tabs.length - 1
+            ? 'No users found'
+            : `No ${tabs[tabValue]?.label || 'users'} found`
         }
       />
 
       {/* Expanded Statistics Section - Rendered as Cards Below Table */}
       {filteredUsers.map((user) => {
-        if (user.role !== UserRole.WORKER || !expandedRows.has(user.id)) return null;
+        if (user.role !== 'worker' || !expandedRows.has(user.id)) return null;
         const userStats = statistics[user.id];
         const isLoadingStats = loadingStats[user.id];
 
@@ -1060,7 +1099,7 @@ const UserManagementPage: React.FC = () => {
             </Typography>
           </Alert>
 
-          {/* Role Selection */}
+          {/* Role Selection - Dynamic */}
           <FormControl fullWidth sx={{ mb: 2 }} required>
             <InputLabel 
               sx={{ color: colors.neutral[400] }}
@@ -1071,13 +1110,13 @@ const UserManagementPage: React.FC = () => {
             <Select
               value={selectedRole}
               onChange={(e) => {
-                setSelectedRole(e.target.value as UserRole);
+                setSelectedRole(e.target.value as string);
                 setError(null);
               }}
               label="Role *"
               required
               autoFocus
-              disabled={approving}
+              disabled={approving || rolesLoading}
               sx={{
                 color: colors.neutral[100],
                 '& .MuiOutlinedInput-notchedOutline': {
@@ -1091,39 +1130,34 @@ const UserManagementPage: React.FC = () => {
                 },
               }}
             >
-              <MenuItem value={UserRole.WORKER}>
-                <Box>
-                  <Typography>Worker</Typography>
-                  <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
-                    Basic user access
-                  </Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem value={UserRole.OPERATOR}>
-                <Box>
-                  <Typography>Operator</Typography>
-                  <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
-                    Can create reports
-                  </Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem value={UserRole.LEADER}>
-                <Box>
-                  <Typography>Leader</Typography>
-                  <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
-                    Team management access
-                  </Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem value={UserRole.ADMIN}>
-                <Box>
-                  <Typography>Admin</Typography>
-                  <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
-                    Full system access
-                  </Typography>
-                </Box>
-              </MenuItem>
+              {roles.map((role) => (
+                <MenuItem key={role.role} value={role.role}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: getRoleColor(role.role),
+                      }}
+                    />
+                    <Box>
+                      <Typography>{getRoleDisplayName(role)}</Typography>
+                      <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
+                        {role.max_data_reach === 'all' ? 'Full system access' :
+                         role.max_data_reach === 'department' ? 'Department access' :
+                         role.max_data_reach === 'group' ? 'Group access' : 'Basic access'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </MenuItem>
+              ))}
             </Select>
+            {rolesLoading && (
+              <Typography variant="caption" sx={{ color: colors.neutral[500], mt: 0.5 }}>
+                Loading roles...
+              </Typography>
+            )}
           </FormControl>
 
           {/* Department Selection */}
@@ -1271,13 +1305,25 @@ const UserManagementPage: React.FC = () => {
             <InputLabel>Role</InputLabel>
             <Select
               value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+              onChange={(e) => setSelectedRole(e.target.value as string)}
               label="Role"
+              disabled={rolesLoading}
             >
-              <MenuItem value={UserRole.WORKER}>Worker</MenuItem>
-              <MenuItem value={UserRole.OPERATOR}>Operator</MenuItem>
-              <MenuItem value={UserRole.LEADER}>Leader</MenuItem>
-              <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
+              {roles.map((role) => (
+                <MenuItem key={role.role} value={role.role}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: getRoleColor(role.role),
+                      }}
+                    />
+                    {getRoleDisplayName(role)}
+                  </Box>
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}>
@@ -1401,10 +1447,21 @@ const UserManagementPage: React.FC = () => {
               }}
             >
               <MenuItem value="all">All Roles</MenuItem>
-              <MenuItem value={UserRole.WORKER}>Worker</MenuItem>
-              <MenuItem value={UserRole.OPERATOR}>Operator</MenuItem>
-              <MenuItem value={UserRole.LEADER}>Leader</MenuItem>
-              <MenuItem value={UserRole.ADMIN}>Admin</MenuItem>
+              {roles.map((role) => (
+                <MenuItem key={role.role} value={role.role}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: getRoleColor(role.role),
+                      }}
+                    />
+                    {getRoleDisplayName(role)}
+                  </Box>
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}>

@@ -35,7 +35,6 @@ import {
   Group,
   Inventory,
   Description,
-  Assignment,
   Analytics,
   Add,
   Delete,
@@ -60,8 +59,6 @@ interface RolePermissions {
   can_edit_products: number;
   can_view_reports: number;
   can_edit_reports: number;
-  can_view_tasks: number;
-  can_edit_tasks: number;
   can_view_analytics: number;
   max_data_reach: string;
   created_at: string;
@@ -69,7 +66,17 @@ interface RolePermissions {
 }
 
 const getRoleDisplayName = (rolePerms: RolePermissions): string => {
-  return rolePerms.role_display_name || rolePerms.role;
+  return rolePerms.role_display_name || rolePerms.role.charAt(0).toUpperCase() + rolePerms.role.slice(1);
+};
+
+// Generate a consistent color for roles based on the role name
+const generateRoleColor = (roleName: string): string => {
+  let hash = 0;
+  for (let i = 0; i < roleName.length; i++) {
+    hash = roleName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 360);
+  return `hsl(${hue}, 70%, 50%)`;
 };
 
 const getRoleColor = (role: string): string => {
@@ -79,7 +86,7 @@ const getRoleColor = (role: string): string => {
     operator: colors.warning[500],
     leader: colors.success[500],
   };
-  return defaultColors[role] || colors.primary[500];
+  return defaultColors[role.toLowerCase()] || generateRoleColor(role);
 };
 
 const RoleManagementPage: React.FC = () => {
@@ -157,8 +164,6 @@ const RoleManagementPage: React.FC = () => {
           can_edit_products: rolePermissions.can_edit_products === 1,
           can_view_reports: rolePermissions.can_view_reports === 1,
           can_edit_reports: rolePermissions.can_edit_reports === 1,
-          can_view_tasks: rolePermissions.can_view_tasks === 1,
-          can_edit_tasks: rolePermissions.can_edit_tasks === 1,
           can_view_analytics: rolePermissions.can_view_analytics === 1,
           max_data_reach: rolePermissions.max_data_reach,
         },
@@ -574,14 +579,6 @@ const RoleManagementPage: React.FC = () => {
                   role={rolePerms.role}
                   viewField="can_view_reports"
                   editField="can_edit_reports"
-                />
-
-                <PermissionSection
-                  title="Tasks"
-                  icon={<Assignment sx={{ fontSize: 18, color: colors.neutral[400] }} />}
-                  role={rolePerms.role}
-                  viewField="can_view_tasks"
-                  editField="can_edit_tasks"
                 />
 
                 <PermissionSection
