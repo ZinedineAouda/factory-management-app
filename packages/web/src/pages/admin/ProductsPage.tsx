@@ -49,7 +49,7 @@ interface Product {
 
 const ProductsPage: React.FC = () => {
   const { token } = useSelector((state: RootState) => state.auth);
-  const { canView, canEdit, isAdmin } = usePermissions();
+  const { canEdit, isAdmin } = usePermissions();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
