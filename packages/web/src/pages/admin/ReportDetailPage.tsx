@@ -14,16 +14,12 @@ import {
   TextField,
   Avatar,
   Divider,
-  IconButton,
 } from '@mui/material';
 import {
   ArrowBack,
   CheckCircle,
-  Comment,
   Send,
   Warning,
-  Image as ImageIcon,
-  Person,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { colors } from '../../theme';
@@ -240,7 +236,7 @@ const ReportDetailPage: React.FC = () => {
               color="success"
               sx={{
                 backgroundColor: alpha(colors.success[500], 0.1),
-                color: colors.success[400],
+                color: colors.success[500],
                 border: `1px solid ${colors.success[500]}`,
               }}
             />
@@ -287,7 +283,7 @@ const ReportDetailPage: React.FC = () => {
                     size="small"
                     sx={{
                       backgroundColor: alpha(colors.primary[500], 0.1),
-                      color: colors.primary[400],
+                      color: colors.primary[500],
                     }}
                   />
                 </Box>
@@ -372,7 +368,7 @@ const ReportDetailPage: React.FC = () => {
                         width: 36,
                         height: 36,
                         backgroundColor: alpha(colors.primary[500], 0.1),
-                        color: colors.primary[400],
+                        color: colors.primary[500],
                         fontSize: '0.875rem',
                       }}
                     >
