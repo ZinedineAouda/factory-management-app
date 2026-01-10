@@ -5,7 +5,6 @@ import path from 'path';
 import { initDatabase, clearAllUsers } from './database/db';
 import authRoutes from './routes/auth';
 import departmentsRoutes from './routes/departments';
-import tasksRoutes from './routes/tasks';
 import registrationCodesRoutes from './routes/registration-codes';
 import profilesRoutes from './routes/profiles';
 import groupsRoutes from './routes/groups';
@@ -13,7 +12,6 @@ import reportsRoutes from './routes/reports';
 import notificationsRoutes from './routes/notifications';
 import productsRoutes from './routes/products';
 import productDeliveriesRoutes from './routes/product-deliveries';
-import maintenanceTasksRoutes from './routes/maintenance-tasks';
 import analyticsRoutes from './routes/analytics';
 import shiftsRoutes from './routes/shifts';
 import rolePermissionsRoutes from './routes/role-permissions';
@@ -169,7 +167,6 @@ initDatabase().then(() => {
   // Routes
   app.use('/api/auth', authRoutes);
   app.use('/api/departments', departmentsRoutes);
-  app.use('/api/tasks', tasksRoutes);
   app.use('/api/admin/registration-codes', registrationCodesRoutes);
   app.use('/api/profiles', profilesRoutes);
   app.use('/api/groups', groupsRoutes);
@@ -177,7 +174,6 @@ initDatabase().then(() => {
   app.use('/api/notifications', notificationsRoutes);
   app.use('/api/products', productsRoutes);
   app.use('/api/product-deliveries', productDeliveriesRoutes);
-  app.use('/api/maintenance-tasks', maintenanceTasksRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/shifts', shiftsRoutes);
   app.use('/api/role-permissions', rolePermissionsRoutes);
@@ -215,8 +211,9 @@ initDatabase().then(() => {
       endpoints: {
         health: '/api/health',
         auth: '/api/auth',
-        tasks: '/api/tasks',
         departments: '/api/departments',
+        reports: '/api/reports',
+        products: '/api/products',
       }
     });
   });

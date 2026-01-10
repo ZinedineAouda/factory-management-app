@@ -25,22 +25,6 @@ export const ApiEndpoints = {
     VALIDATE_CODE: (code: string) => `${API_BASE_URL}/auth/validate-code/${code}`,
   },
 
-  // Tasks
-  TASKS: {
-    LIST: `${API_BASE_URL}/tasks`,
-    DETAIL: (id: string) => `${API_BASE_URL}/tasks/${id}`,
-    CREATE: `${API_BASE_URL}/admin/tasks`,
-    UPDATE: (id: string) => `${API_BASE_URL}/admin/tasks/${id}`,
-    DELETE: (id: string) => `${API_BASE_URL}/admin/tasks/${id}`,
-    UPDATE_PROGRESS: (id: string) => `${API_BASE_URL}/tasks/${id}/progress`,
-    ADD_UPDATE: (id: string) => `${API_BASE_URL}/tasks/${id}/updates`,
-  },
-
-  // Admin Tasks
-  ADMIN_TASKS: {
-    LIST: `${API_BASE_URL}/admin/tasks`,
-  },
-
   // Analytics
   ANALYTICS: {
     OVERVIEW: `${API_BASE_URL}/admin/analytics/overview`,

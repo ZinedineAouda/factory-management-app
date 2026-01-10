@@ -3,7 +3,7 @@
 **Status:** 🟡 BETA - Production  
 **Version:** 1.0.0
 
-A comprehensive factory management application with web dashboard and mobile app support. Manage workers, tasks, products, departments, and track production analytics in real-time.
+A comprehensive factory management application with web dashboard and mobile app support. Manage users, departments, products, issue reports, and track production analytics in real-time.
 
 ## 🎯 Key Features
 
@@ -12,7 +12,7 @@ A comprehensive factory management application with web dashboard and mobile app
 - **Department-Based Data Access:** Users only see data from their department
 - **User Approval System:** New registrations require admin approval
 - **Real-Time Analytics:** Production metrics and analytics dashboard
-- **Task Management:** Assign and track tasks across departments
+- **Issue Reporting:** Operators can report problems and troubles
 - **Product Management:** Inventory and delivery tracking
 
 ## 🚀 Quick Start
@@ -70,22 +70,26 @@ factory-management-app/
 │   │   ├── routes/         # API route handlers
 │   │   ├── middleware/     # Authentication middleware
 │   │   ├── services/       # Business logic services
-│   │   └── jobs/          # Scheduled jobs (analytics, monitoring)
-│   ├── scripts/           # Utility scripts
-│   └── uploads/           # User-uploaded files (products, profiles)
+│   │   ├── jobs/          # Scheduled jobs (analytics, monitoring)
+│   │   └── scripts/       # Utility scripts (approve-user, etc.)
+│   ├── scripts/           # Development utility scripts
+│   └── uploads/           # User-uploaded files (products, reports)
 │
 ├── packages/
 │   ├── web/               # React web application
 │   │   ├── src/
 │   │   │   ├── components/  # Reusable UI components
-│   │   │   ├── pages/       # Page components
+│   │   │   │   ├── layout/  # Layout components (Sidebar, Topbar, etc.)
+│   │   │   │   └── ui/      # UI components (DataTable, EmptyState, etc.)
+│   │   │   ├── pages/       # Page components (admin, auth, operator, etc.)
 │   │   │   ├── routes/      # Routing configuration
 │   │   │   ├── store/       # Redux state management
+│   │   │   ├── hooks/       # Custom React hooks
 │   │   │   ├── theme/       # Material-UI theme
 │   │   │   └── api/         # API client configuration
 │   │   └── public/          # Static assets
 │   │
-│   ├── mobile/            # React Native mobile app
+│   ├── mobile/            # React Native mobile app (in development)
 │   │   └── src/
 │   │       ├── screens/    # Mobile screens
 │   │       ├── navigation/  # Navigation setup
@@ -220,31 +224,31 @@ See [ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md) for details.
 ## 📚 Features
 
 ### Admin Features
-- User management (create, edit, assign roles)
+- User management (create, edit, assign roles, approve registrations)
 - Department and group management
-- Task creation and assignment
 - Product management with image uploads
-- Reports and analytics dashboard
-- Role-based access control
+- Issue reports management (view, comment, mark as solved)
+- Analytics dashboard
+- Role-based access control (configure permissions per role)
 - Registration code generation
 - Real-time activity monitoring
 
 ### Worker Features
-- View assigned tasks
-- Update task progress
 - View department statistics
 - Product delivery tracking
 - Profile management
+- View and comment on issue reports in their department
 
 ### Operator Features
-- Create and manage reports
-- Task management
+- Create issue reports (report problems/troubles)
+- Manage own reports (mark as solved)
 - Dashboard overview
+- Comment on reports
 
 ### Leader Features
-- Maintenance task management
-- Task creation and assignment
+- View and comment on reports in their department
 - Team oversight
+- Dashboard overview
 
 ## 🔐 Security
 
@@ -258,10 +262,9 @@ See [ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md) for details.
 
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Step-by-step hosting guide (FREE)
 - **[ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md)** - Environment variables guide ⚠️ **IMPORTANT**
-- **[AUDIT_REPORT.md](./AUDIT_REPORT.md)** - Comprehensive system audit
-- **[CRITICAL_FIXES_APPLIED.md](./CRITICAL_FIXES_APPLIED.md)** - Recent critical fixes
-- **[GETTING_STARTED.md](./GETTING_STARTED.md)** - Quick 5-minute start guide
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Technical architecture details
+- **[AUDIT_REPORT.md](./AUDIT_REPORT.md)** - Comprehensive system audit
+- **[ADMIN_PRESERVATION.md](./ADMIN_PRESERVATION.md)** - Admin account preservation guide
 - **[CHANGELOG.md](./CHANGELOG.md)** - Version history
 
 ## 🐛 Troubleshooting

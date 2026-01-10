@@ -61,37 +61,27 @@ This audit was conducted to:
 3. **DepartmentManagementPage** - Department management
 4. **GroupsAndShiftsPage** - Groups and shifts management
 5. **ProductsPage** - Product inventory management
-6. **ReportsPage** - Reports overview
-7. **AnalyticsPage** - Analytics dashboard
-8. **RoleManagementPage** - Role permissions configuration
-9. **CodeGenerationPage** - Registration code generation
-10. **TaskManagementPage** - Task CRUD
-11. **TaskCreatePage** - Task creation
-12. **SettingsPage** - User settings
+6. **ReportsPage** - Issue reports overview
+7. **ReportDetailPage** - View report details, comments, mark as solved
+8. **AnalyticsPage** - Analytics dashboard
+9. **RoleManagementPage** - Role permissions configuration
+10. **CodeGenerationPage** - Registration code generation
+11. **SettingsPage** - User settings
 
 #### Worker Pages
 1. **WorkerDashboardPage** - Worker overview
-2. **TaskListPage** - Assigned tasks
-3. **TaskDetailPage** - Task details and updates
-4. **MaintenanceTasksPage** - Maintenance tasks (if maintenance dept)
-5. **MaintenanceTaskDetailPage** - Maintenance task details
-6. **ProductDeliveryPage** - Product delivery tracking
-7. **ProductDetailPage** - Product details
-8. **ProfilePage** - User profile
+2. **ProductDeliveryPage** - Product delivery tracking
+3. **ProductDetailPage** - Product details
+4. **ProfilePage** - User profile
 
 #### Operator Pages
 1. **OperatorDashboardPage** - Operator overview
-2. **OperatorTaskListPage** - Task list
-3. **OperatorTaskDetailPage** - Task details
-4. **OperatorTaskCreatePage** - Create task
-5. **OperatorReportPage** - Create report
+2. **ReportCreatePage** - Create issue reports (report problems/troubles)
+3. **ReportsPage** - View and manage own reports
 
 #### Leader Pages
 1. **LeaderDashboardPage** - Leader overview
-2. **LeaderTaskListPage** - Maintenance tasks
-3. **LeaderTaskDetailPage** - Task details
-4. **LeaderTaskCreatePage** - Create task
-5. **MaintenanceTaskCreatePage** - Create maintenance task
+2. **ReportsPage** - View and comment on reports in department
 
 #### Auth Pages
 1. **LoginPage** - User login
@@ -168,7 +158,7 @@ const defaultOrigins = [
 - ✅ Department management
 - ✅ Group management
 - ✅ Product management
-- ✅ Task management
+- ✅ Issue reporting system (operators report problems/troubles)
 - ✅ Reports
 - ✅ Analytics (with caching)
 - ✅ Notifications
@@ -177,7 +167,7 @@ const defaultOrigins = [
 ### Partially Working / Needs Testing
 - ⚠️ Analytics real-time updates (caching may delay)
 - ⚠️ Product deliveries
-- ⚠️ Maintenance tasks workflow
+- ✅ Report commenting and resolution workflow
 - ⚠️ Shift management
 
 ### Unknown Status (Requires Testing)

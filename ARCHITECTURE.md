@@ -54,7 +54,7 @@
 - `users` - User accounts and authentication
 - `departments` - Factory departments
 - `groups` - Worker groups within departments
-- `tasks` - Task assignments
+- `reports` - Issue reports (problems/troubles reported by operators)
 - `products` - Product catalog
 - `reports` - Operator reports
 - `notifications` - User notifications
@@ -71,7 +71,7 @@
 ### Resources
 - `/api/users` - User management
 - `/api/departments` - Department management
-- `/api/tasks` - Task management
+- `/api/reports` - Issue report management
 - `/api/products` - Product management
 - `/api/reports` - Report management
 - `/api/notifications` - Notification system
@@ -87,10 +87,10 @@
 5. Middleware validates token on protected routes
 
 ### Role-Based Access Control
-- **Admin**: Full system access
-- **Operator**: Report creation and task management
-- **Leader**: Maintenance task management
-- **Worker**: Task viewing and updates only
+- **Admin**: Full system access, can mark any report as solved
+- **Operator**: Create issue reports, mark own reports as solved, comment on reports
+- **Leader**: View and comment on reports in their department
+- **Worker**: View and comment on reports in their department (read-only access)
 
 ## File Structure
 
