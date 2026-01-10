@@ -193,11 +193,6 @@ router.post('/register', async (req, res) => {
     if (initialStatus === 'pending') {
       try {
         const admins = await dbAll('SELECT id FROM users WHERE role = ? AND status = ?', ['admin', 'active']);
-        
-        // Get the user's role (from the created user record, fallback to code.role)
-        const userRole = user?.role || code.role || 'unknown';
-        const roleText = userRole && userRole !== 'unknown' ? ` (${userRole})` : '';
-        
         for (const admin of admins) {
           const notificationId = uuidv4();
           await dbRun(
@@ -207,7 +202,7 @@ router.post('/register', async (req, res) => {
               admin.id,
               'user_registered',
               'New User Registration',
-              `User "${username}"${roleText} has registered and is pending approval.`,
+              `User "${username}" has registered and is pending approval.`,
               userId
             ]
           );
