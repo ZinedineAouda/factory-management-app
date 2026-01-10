@@ -17,7 +17,6 @@ import {
   alpha,
 } from '@mui/material';
 import {
-  ArrowBack,
   CheckCircle,
   Inventory,
 } from '@mui/icons-material';
