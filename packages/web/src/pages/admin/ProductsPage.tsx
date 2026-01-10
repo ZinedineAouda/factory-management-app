@@ -291,7 +291,7 @@ const ProductsPage: React.FC = () => {
       setSubmittingDelivery(true);
       setError(null);
 
-      const response = await axios.post(
+      await axios.post(
         ApiEndpoints.PRODUCT_DELIVERIES.CREATE,
         {
           productId: selectedProductForDelivery.id,
