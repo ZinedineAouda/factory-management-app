@@ -44,14 +44,23 @@ const generateRoleColor = (roleName: string): string => {
   return `hsl(${hue}, 70%, 50%)`;
 };
 
-export const getRoleColor = (role: string): string => {
+export const getRoleColor = (role: string | null | undefined): string => {
+  if (!role) {
+    return generateRoleColor('default');
+  }
   return DEFAULT_ROLE_COLORS[role.toLowerCase()] || generateRoleColor(role);
 };
 
-export const getRoleDisplayName = (role: Role | string): string => {
+export const getRoleDisplayName = (role: Role | string | null | undefined): string => {
+  if (!role) {
+    return 'Unknown';
+  }
   if (typeof role === 'string') {
     // Capitalize first letter
     return role.charAt(0).toUpperCase() + role.slice(1);
+  }
+  if (!role.role) {
+    return 'Unknown';
   }
   return role.role_display_name || role.role.charAt(0).toUpperCase() + role.role.slice(1);
 };
@@ -103,11 +112,12 @@ export const useRoles = (): UseRolesReturn => {
     fetchRoles();
   }, [fetchRoles]);
 
-  const getRoleByName = useCallback((roleName: string): Role | undefined => {
-    return roles.find(r => r.role.toLowerCase() === roleName.toLowerCase());
+  const getRoleByName = useCallback((roleName: string | null | undefined): Role | undefined => {
+    if (!roleName) return undefined;
+    return roles.find(r => r && r.role && r.role.toLowerCase() === roleName.toLowerCase());
   }, [roles]);
 
-  const roleNames = roles.map(r => r.role);
+  const roleNames = roles.filter(r => r && r.role).map(r => r.role);
 
   return {
     roles,

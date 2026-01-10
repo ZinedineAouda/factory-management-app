@@ -101,9 +101,11 @@ const UserManagementPage: React.FC = () => {
   // Dynamic user grouping by role
   const usersByRole = useMemo(() => {
     const grouped: Record<string, User[]> = {};
-    roles.forEach(role => {
-      grouped[role.role] = users.filter(u => u.role === role.role);
-    });
+    roles
+      .filter(role => role && role.role) // Filter out null/undefined roles
+      .forEach(role => {
+        grouped[role.role] = users.filter(u => u.role === role.role);
+      });
     return grouped;
   }, [users, roles]);
 
@@ -114,13 +116,15 @@ const UserManagementPage: React.FC = () => {
       { label: 'Pending Approval', role: null, count: pendingUsers.length },
     ];
     
-    roles.forEach(role => {
-      tabList.push({
-        label: getRoleDisplayName(role),
-        role: role.role,
-        count: usersByRole[role.role]?.length || 0,
+    roles
+      .filter(role => role && role.role) // Filter out null/undefined roles
+      .forEach(role => {
+        tabList.push({
+          label: getRoleDisplayName(role),
+          role: role.role,
+          count: usersByRole[role.role]?.length || 0,
+        });
       });
-    });
     
     tabList.push({ label: 'All Users', role: 'all', count: users.length });
     
@@ -735,14 +739,15 @@ const UserManagementPage: React.FC = () => {
       label: 'Role',
       width: 120,
       render: (row: User) => {
-        const roleData = roles.find(r => r.role === row.role);
+        const userRole = row.role ? String(row.role) : 'unknown';
+        const roleData = roles.find(r => r && r.role && r.role === userRole);
         return (
           <Chip
-            label={roleData ? getRoleDisplayName(roleData) : row.role}
+            label={roleData ? getRoleDisplayName(roleData) : (userRole || 'Unknown')}
             size="small"
             sx={{
-              backgroundColor: alpha(getRoleColor(row.role as string), 0.15),
-              color: getRoleColor(row.role as string),
+              backgroundColor: alpha(getRoleColor(userRole), 0.15),
+              color: getRoleColor(userRole),
               fontWeight: 500,
               fontSize: '0.75rem',
             }}

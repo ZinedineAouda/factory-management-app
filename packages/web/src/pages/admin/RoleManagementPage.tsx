@@ -66,7 +66,10 @@ interface RolePermissions {
 }
 
 const getRoleDisplayName = (rolePerms: RolePermissions): string => {
-  return rolePerms.role_display_name || rolePerms.role.charAt(0).toUpperCase() + rolePerms.role.slice(1);
+  if (!rolePerms || !rolePerms.role) {
+    return 'Unknown';
+  }
+  return rolePerms.role_display_name || (rolePerms.role.charAt(0).toUpperCase() + rolePerms.role.slice(1));
 };
 
 // Generate a consistent color for roles based on the role name
@@ -79,7 +82,10 @@ const generateRoleColor = (roleName: string): string => {
   return `hsl(${hue}, 70%, 50%)`;
 };
 
-const getRoleColor = (role: string): string => {
+const getRoleColor = (role: string | null | undefined): string => {
+  if (!role) {
+    return colors.primary[500];
+  }
   const defaultColors: Record<string, string> = {
     admin: colors.error[500],
     worker: colors.primary[500],
@@ -190,7 +196,7 @@ const RoleManagementPage: React.FC = () => {
   };
 
   const handleCreateRole = async () => {
-    if (!newRole.role.trim()) {
+    if (!newRole.role || !newRole.role.trim()) {
       setError('Role name is required');
       return;
     }
@@ -199,11 +205,18 @@ const RoleManagementPage: React.FC = () => {
       setSaving((prev) => ({ ...prev, create: true }));
       setError(null);
 
+      const roleName = String(newRole.role || '').trim().toLowerCase();
+      if (!roleName) {
+        setError('Role name is required');
+        setSaving((prev) => ({ ...prev, create: false }));
+        return;
+      }
+
       await axios.post(
         ApiEndpoints.ROLE_PERMISSIONS.CREATE,
         {
-          role: newRole.role.trim().toLowerCase(),
-          role_display_name: newRole.role_display_name.trim() || newRole.role.trim(),
+          role: roleName,
+          role_display_name: (newRole.role_display_name || '').trim() || roleName,
           max_data_reach: newRole.max_data_reach,
         },
         {
@@ -382,7 +395,9 @@ const RoleManagementPage: React.FC = () => {
       )}
 
       <Grid container spacing={3}>
-        {permissions.map((rolePerms) => (
+        {permissions
+          .filter(rolePerms => rolePerms && rolePerms.role) // Filter out null/undefined roles
+          .map((rolePerms) => (
           <Grid item xs={12} md={6} key={rolePerms.role}>
             <Card
               sx={{
