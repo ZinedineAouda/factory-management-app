@@ -6,19 +6,12 @@ import { UserRole } from '@factory-app/shared';
 import { colors } from '../theme';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
-import TaskListPage from '../pages/worker/TaskListPage';
-import TaskDetailPage from '../pages/worker/TaskDetailPage';
 import WorkerDashboardPage from '../pages/worker/WorkerDashboardPage';
 import ProfilePage from '../pages/worker/ProfilePage';
 import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage';
-import OperatorTaskListPage from '../pages/operator/OperatorTaskListPage';
-import OperatorTaskDetailPage from '../pages/operator/OperatorTaskDetailPage';
-import OperatorTaskCreatePage from '../pages/operator/OperatorTaskCreatePage';
 import OperatorReportPage from '../pages/operator/OperatorReportPage';
 import LeaderDashboardPage from '../pages/leader/LeaderDashboardPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
-import TaskManagementPage from '../pages/admin/TaskManagementPage';
-import TaskCreatePage from '../pages/admin/TaskCreatePage';
 import CodeGenerationPage from '../pages/admin/CodeGenerationPage';
 import DepartmentManagementPage from '../pages/admin/DepartmentManagementPage';
 import UserManagementPage from '../pages/admin/UserManagementPage';
@@ -89,27 +82,11 @@ const AppRoutes: React.FC = () => {
                   return <Navigate to="/leader/dashboard" replace />;
                 }
                 
-                // Default to tasks for worker or unknown roles
-                return <Navigate to="/tasks" replace />;
+                // Default to dashboard for worker or unknown roles
+                return <Navigate to="/dashboard" replace />;
               })()}
             </ProtectedRoute>
           )
-        }
-      />
-      <Route
-        path="/tasks"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.WORKER, UserRole.LEADER]}>
-            <TaskListPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/tasks/:taskId"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.WORKER]}>
-            <TaskDetailPage />
-          </ProtectedRoute>
         }
       />
       <Route
@@ -146,39 +123,6 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/operator/tasks"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
-            <OperatorTaskListPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/operator/tasks/create"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
-            <OperatorTaskCreatePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/operator/tasks/:taskId"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
-            <OperatorTaskDetailPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/operator/tasks/:taskId/report"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
-            <OperatorReportPage />
-          </ProtectedRoute>
-        }
-      />
 
       {/* Leader Routes */}
       <Route
@@ -196,30 +140,6 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <AdminDashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/tasks"
-        element={
-          <ProtectedRoute requiredPermission={{ view: 'Tasks' }}>
-            <TaskManagementPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/tasks/create"
-        element={
-          <ProtectedRoute requiredPermission={{ edit: 'Tasks' }}>
-            <TaskCreatePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/tasks/create/:taskId"
-        element={
-          <ProtectedRoute requiredPermission={{ edit: 'Tasks' }}>
-            <TaskCreatePage />
           </ProtectedRoute>
         }
       />

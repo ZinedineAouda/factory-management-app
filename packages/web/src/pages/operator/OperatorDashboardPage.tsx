@@ -8,9 +8,7 @@ import {
 } from '@mui/material';
 import {
   Description,
-  Assignment,
   TrendingUp,
-  Schedule,
   ArrowForward,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
@@ -22,17 +20,10 @@ const OperatorDashboardPage: React.FC = () => {
 
   const quickActions = [
     {
-      title: 'View Tasks',
-      description: 'See assigned tasks and create reports',
-      icon: <Assignment />,
-      path: '/operator/tasks',
-      color: colors.success[500],
-    },
-    {
       title: 'Create Report',
-      description: 'Submit a new production report for a task',
+      description: 'Submit a new production report',
       icon: <Description />,
-      path: '/operator/tasks',
+      path: '/admin/reports',
       color: colors.primary[500],
     },
   ];
@@ -50,22 +41,6 @@ const OperatorDashboardPage: React.FC = () => {
             value={0}
             icon={<Description />}
             color="primary"
-              />
-            </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-            title="Tasks Assigned"
-            value={0}
-            icon={<Assignment />}
-            color="success"
-              />
-            </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-            title="Pending Tasks"
-            value={0}
-            icon={<Schedule />}
-            color="warning"
               />
             </Grid>
         <Grid item xs={12} sm={6} lg={3}>

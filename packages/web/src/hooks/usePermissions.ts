@@ -23,8 +23,6 @@ export const usePermissions = () => {
     canEditProducts: true,
     canViewReports: true,
     canEditReports: true,
-    canViewTasks: true,
-    canEditTasks: true,
     canViewAnalytics: true,
     maxDataReach: 'all',
   };

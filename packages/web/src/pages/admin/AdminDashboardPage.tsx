@@ -15,12 +15,11 @@ import {
 import {
   People,
   Business,
-  Assignment,
   TrendingUp,
   ArrowForward,
   MoreVert,
   Inventory,
-  CheckCircle,
+  Description,
   Delete,
 } from '@mui/icons-material';
 import {
@@ -69,26 +68,21 @@ const AdminDashboardPage: React.FC = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalDepartments: 0,
-    totalTasks: 0,
-    completedTasks: 0,
   });
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [clearingActivity, setClearingActivity] = useState(false);
-  const [activityData, setActivityData] = useState<Array<{ name: string; tasks: number; completed: number }>>([]);
+  const [activityData, setActivityData] = useState<Array<{ name: string; tasks: number }>>([]);
   const [departmentData, setDepartmentData] = useState<Array<{ name: string; value: number; color: string }>>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const [usersRes, deptsRes, tasksRes, activityRes] = await Promise.all([
+        const [usersRes, deptsRes, activityRes] = await Promise.all([
           axios.get(ApiEndpoints.USERS.LIST, {
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => ({ data: [] })),
           axios.get(ApiEndpoints.DEPARTMENTS.LIST, {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => ({ data: [] })),
-          axios.get(ApiEndpoints.TASKS.LIST, {
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => ({ data: [] })),
           axios.get(ApiEndpoints.ACTIVITY_LOG.LIST, {
@@ -96,70 +90,51 @@ const AdminDashboardPage: React.FC = () => {
           }).catch(() => ({ data: [] })),
         ]);
         
-        const tasks = tasksRes.data || [];
-        const completedTasks = tasks.filter((task: any) => task.status === 'completed' || task.status === 'done').length;
-        
         setStats({
           totalUsers: usersRes.data?.length || 0,
           totalDepartments: deptsRes.data?.length || 0,
-          totalTasks: tasks.length,
-          completedTasks,
+          totalTasks: 0,
+          completedTasks: 0,
         });
         setRecentActivity(activityRes.data || []);
 
-        // Generate weekly activity data from tasks (last 7 days)
+        // Generate weekly activity data from activity log (last 7 days)
         const now = new Date();
         const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weeklyData = [];
+        const activities = activityRes.data || [];
         
         for (let i = 6; i >= 0; i--) {
           const date = new Date(now);
           date.setDate(now.getDate() - i);
           date.setHours(0, 0, 0, 0);
-          const nextDay = new Date(date);
-          nextDay.setDate(date.getDate() + 1);
           
           const dayOfWeek = date.getDay();
           const dayName = weekDays[dayOfWeek];
 
-          const dayTasks = tasks.filter((task: any) => {
-            if (!task.createdAt && !task.created_at) return false;
-            const taskDate = new Date(task.createdAt || task.created_at);
-            taskDate.setHours(0, 0, 0, 0);
-            return taskDate.getTime() === date.getTime();
-          });
-
-          const dayCompleted = tasks.filter((task: any) => {
-            const completedDate = task.completedAt || task.completed_at;
-            if (!completedDate) return false;
-            const compDate = new Date(completedDate);
-            compDate.setHours(0, 0, 0, 0);
-            return compDate.getTime() === date.getTime();
+          const dayActivities = activities.filter((activity: Activity) => {
+            if (!activity.timestamp && !activity.created_at) return false;
+            const activityDate = new Date(activity.timestamp || activity.created_at || '');
+            activityDate.setHours(0, 0, 0, 0);
+            return activityDate.getTime() === date.getTime();
           });
 
           weeklyData.push({
             name: dayName,
-            tasks: dayTasks.length,
-            completed: dayCompleted.length,
+            tasks: dayActivities.length,
+            completed: 0,
           });
         }
 
         setActivityData(weeklyData);
 
-        // Generate department distribution from tasks
-        const deptMap = new Map<string, number>();
-        tasks.forEach((task: any) => {
-          const deptName = task.departmentName || task.department_name || 'Unknown';
-          deptMap.set(deptName, (deptMap.get(deptName) || 0) + 1);
-        });
-
-        // If no tasks, show empty state
-        if (deptMap.size === 0) {
+        // Generate department distribution from departments
+        const departments = deptsRes.data || [];
+        if (departments.length === 0) {
           setDepartmentData([
-            { name: 'No Tasks', value: 100, color: colors.neutral[600] },
+            { name: 'No Departments', value: 100, color: colors.neutral[600] },
           ]);
         } else {
-          const total = tasks.length;
           const deptColors = [
             colors.primary[500],
             colors.success[500],
@@ -168,9 +143,10 @@ const AdminDashboardPage: React.FC = () => {
             colors.error[500],
           ];
           
-          const deptArray = Array.from(deptMap.entries()).map(([name, count], index) => ({
-            name,
-            value: Math.round((count / total) * 100),
+          const total = departments.length;
+          const deptArray = departments.map((dept: any, index: number) => ({
+            name: dept.name || 'Unknown',
+            value: Math.round((1 / total) * 100),
             color: deptColors[index % deptColors.length],
           }));
 
@@ -286,9 +262,9 @@ const AdminDashboardPage: React.FC = () => {
             <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
           ) : (
             <StatCard
-              title="Active Tasks"
-              value={stats.totalTasks}
-              icon={<Assignment />}
+              title="Products"
+              value={0}
+              icon={<Inventory />}
               color="warning"
             />
           )}
@@ -298,9 +274,9 @@ const AdminDashboardPage: React.FC = () => {
             <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
           ) : (
             <StatCard
-              title="Completion Rate"
-              value={stats.totalTasks > 0 ? `${Math.round((stats.completedTasks / stats.totalTasks) * 100)}%` : '0%'}
-              icon={<CheckCircle />}
+              title="Reports"
+              value={0}
+              icon={<Description />}
               color="info"
             />
           )}
@@ -325,7 +301,7 @@ const AdminDashboardPage: React.FC = () => {
                   Weekly Activity
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: colors.neutral[500], mt: 0.5 }}>
-                  Tasks created vs completed this week
+                  Activity this week
                 </Typography>
               </Box>
               <Tooltip title="More options">
@@ -341,10 +317,6 @@ const AdminDashboardPage: React.FC = () => {
                   <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={colors.primary[500]} stopOpacity={0.3} />
                     <stop offset="95%" stopColor={colors.primary[500]} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colors.success[500]} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={colors.success[500]} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.neutral[800]} />
@@ -375,15 +347,7 @@ const AdminDashboardPage: React.FC = () => {
                   stroke={colors.primary[500]}
                   fill="url(#colorTasks)"
                   strokeWidth={2}
-                  name="Tasks Created"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="completed"
-                  stroke={colors.success[500]}
-                  fill="url(#colorCompleted)"
-                  strokeWidth={2}
-                  name="Completed"
+                  name="Activity"
                 />
               </AreaChart>
               ) : (

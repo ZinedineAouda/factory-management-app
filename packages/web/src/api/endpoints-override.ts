@@ -50,15 +50,6 @@ export const ApiEndpoints = {
     VALIDATE_CODE: (code: string) => `${API_BASE_URL}/auth/validate-code/${code}`,
     CHECK_USERNAME: (username: string) => `${API_BASE_URL}/auth/check-username/${encodeURIComponent(username)}`,
   },
-  TASKS: {
-    LIST: `${API_BASE_URL}/tasks`,
-    DETAIL: (id: string) => `${API_BASE_URL}/tasks/${id}`,
-    CREATE: `${API_BASE_URL}/tasks`,
-    UPDATE: (id: string) => `${API_BASE_URL}/tasks/${id}`,
-    DELETE: (id: string) => `${API_BASE_URL}/tasks/${id}`,
-    UPDATE_PROGRESS: (id: string) => `${API_BASE_URL}/tasks/${id}/progress`,
-    ADD_UPDATE: (id: string) => `${API_BASE_URL}/tasks/${id}/updates`,
-  },
   DEPARTMENTS: {
     LIST: `${API_BASE_URL}/departments`,
   },
@@ -97,13 +88,6 @@ export const ApiEndpoints = {
     LIST: `${API_BASE_URL}/product-deliveries`,
     MY_DELIVERIES: `${API_BASE_URL}/product-deliveries/my-deliveries`,
     BY_PRODUCT: (productId: string) => `${API_BASE_URL}/product-deliveries/product/${productId}`,
-  },
-  MAINTENANCE_TASKS: {
-    CREATE: `${API_BASE_URL}/maintenance-tasks`,
-    LIST: `${API_BASE_URL}/maintenance-tasks`,
-    DETAIL: (id: string) => `${API_BASE_URL}/maintenance-tasks/${id}`,
-    UPDATE: (id: string) => `${API_BASE_URL}/maintenance-tasks/${id}`,
-    UPDATE_PROGRESS: (id: string) => `${API_BASE_URL}/maintenance-tasks/${id}/progress`,
   },
   ANALYTICS: {
     PRODUCTION: `${API_BASE_URL}/analytics/production`,

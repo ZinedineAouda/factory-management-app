@@ -9,12 +9,8 @@ import {
 } from '@mui/material';
 import {
   Assignment,
-  CheckCircle,
-  Schedule,
-  TrendingUp,
   ArrowForward,
   Inventory,
-  Build,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { StatCard } from '../../components/ui';
@@ -45,23 +41,6 @@ const WorkerDashboardPage: React.FC = () => {
           color: colors.success[500],
         },
       ]
-    : isMaintenance
-    ? [
-        {
-          title: 'My Tasks',
-          description: 'View assigned maintenance tasks',
-          icon: <Build />,
-          path: '/maintenance-tasks',
-          color: colors.primary[500],
-        },
-        {
-          title: 'Task Progress',
-          description: 'Update task status',
-          icon: <TrendingUp />,
-          path: '/maintenance-tasks',
-          color: colors.success[500],
-        },
-      ]
     : [
         {
           title: 'My Profile',
@@ -77,41 +56,6 @@ const WorkerDashboardPage: React.FC = () => {
       title="Dashboard"
       subtitle={`Welcome back! ${user?.departmentName ? `You're assigned to ${user.departmentName} department.` : 'Contact admin to get assigned to a department.'}`}
     >
-      {/* Stats */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
-            title="Assigned Tasks"
-            value={0}
-            icon={<Assignment />}
-            color="primary"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
-            title="Completed"
-            value={0}
-            icon={<CheckCircle />}
-            color="success"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
-            title="In Progress"
-            value={0}
-            icon={<Schedule />}
-            color="warning"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
-            title="Completion Rate"
-            value="—"
-            icon={<TrendingUp />}
-            color="info"
-          />
-        </Grid>
-      </Grid>
 
       {/* Quick Actions */}
       <Box

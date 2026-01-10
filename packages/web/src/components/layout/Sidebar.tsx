@@ -24,8 +24,6 @@ import {
   Description,
   VpnKey,
   Group,
-  Build,
-  Assignment,
   ExpandLess,
   ExpandMore,
   Settings,
@@ -134,19 +132,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
       }
     }
 
-    // Tasks - show if can view tasks
-    if (isAdmin || (permissions && canView('Tasks'))) {
-      if (user.role === 'operator') {
-        items.push({ label: 'Tasks', icon: <Assignment />, path: '/operator/tasks' });
-      } else if (user.role === 'leader') {
-        items.push({ label: 'Tasks', icon: <Build />, path: '/leader/maintenance-tasks' });
-        if (isAdmin || (permissions && canEdit('Tasks'))) {
-          items.push({ label: 'Create Task', icon: <Assignment />, path: '/leader/maintenance-tasks/create' });
-        }
-      } else {
-        items.push({ label: 'Tasks', icon: <Build />, path: '/tasks' });
-      }
-    }
 
     // Admin-only items
     if (isAdmin) {

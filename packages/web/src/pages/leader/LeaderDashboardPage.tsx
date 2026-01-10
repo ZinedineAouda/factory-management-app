@@ -8,13 +8,8 @@ import {
   alpha,
 } from '@mui/material';
 import {
-  Build,
-  Assignment,
-  CheckCircle,
-  Schedule,
-  TrendingUp,
+  Description,
   ArrowForward,
-  Add,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { StatCard } from '../../components/ui';
@@ -25,18 +20,11 @@ const LeaderDashboardPage: React.FC = () => {
 
   const quickActions = [
     {
-      title: 'View Tasks',
-      description: 'Manage maintenance tasks',
-      icon: <Build />,
-      path: '/leader/maintenance-tasks',
+      title: 'View Reports',
+      description: 'View and manage reports',
+      icon: <Description />,
+      path: '/admin/reports',
       color: colors.primary[500],
-    },
-    {
-      title: 'Create Task',
-      description: 'Assign new maintenance task',
-      icon: <Assignment />,
-      path: '/leader/maintenance-tasks/create',
-      color: colors.success[500],
     },
   ];
 
@@ -44,51 +32,7 @@ const LeaderDashboardPage: React.FC = () => {
     <PageContainer
       title="Leader Dashboard"
       subtitle="Manage and assign maintenance tasks to your team"
-      actions={
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/leader/maintenance-tasks/create')}
-        >
-          Create Task
-        </Button>
-      }
     >
-      {/* Stats */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
-            title="Total Tasks"
-            value={0}
-            icon={<Build />}
-            color="primary"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
-            title="Completed"
-            value={0}
-            icon={<CheckCircle />}
-            color="success"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
-            title="In Progress"
-            value={0}
-            icon={<Schedule />}
-            color="warning"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
-            title="Completion Rate"
-            value="—"
-            icon={<TrendingUp />}
-            color="info"
-          />
-        </Grid>
-      </Grid>
 
       {/* Quick Actions */}
       <Box
