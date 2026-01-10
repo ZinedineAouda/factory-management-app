@@ -19,6 +19,7 @@ import AnalyticsPage from '../pages/admin/AnalyticsPage';
 import ReportsPage from '../pages/admin/ReportsPage';
 import ReportDetailPage from '../pages/admin/ReportDetailPage';
 import ProductsPage from '../pages/admin/ProductsPage';
+import ProductViewPage from '../pages/worker/ProductViewPage';
 import ProductDeliveryPage from '../pages/worker/ProductDeliveryPage';
 import GroupsAndShiftsPage from '../pages/admin/GroupsAndShiftsPage';
 import RoleManagementPage from '../pages/admin/RoleManagementPage';
@@ -201,11 +202,21 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      {/* Products page - only for users with edit permissions */}
       <Route
         path="/admin/products"
         element={
-          <ProtectedRoute requiredPermission={{ view: 'Products' }}>
+          <ProtectedRoute requiredPermission={{ edit: 'Products' }}>
             <ProductsPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* Products view page - for users with view-only permissions */}
+      <Route
+        path="/products"
+        element={
+          <ProtectedRoute requiredPermission={{ view: 'Products' }}>
+            <ProductViewPage />
           </ProtectedRoute>
         }
       />

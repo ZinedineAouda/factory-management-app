@@ -59,7 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { permissions, isAdmin, canView } = usePermissions();
+  const { permissions, isAdmin, canView, canEdit } = usePermissions();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   const getNavItems = (): NavItem[] => {
@@ -105,12 +105,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
       }
     }
 
-    // Products - show if can view products
+    // Products - route based on permissions
     if (isAdmin || (permissions && canView('Products'))) {
-      if (isAdmin) {
+      // Users with edit permissions go to admin products page
+      if (isAdmin || (permissions && canEdit('Products'))) {
         items.push({ label: 'Products', icon: <Inventory />, path: '/admin/products' });
       } else {
-        items.push({ label: 'Products', icon: <Inventory />, path: '/admin/products' });
+        // Users with view-only permissions go to view-only products page
+        items.push({ label: 'Products', icon: <Inventory />, path: '/products' });
       }
     }
 

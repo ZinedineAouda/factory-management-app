@@ -29,8 +29,6 @@ import {
   Refresh,
   CloudUpload,
   Image as ImageIcon,
-  ShoppingCart,
-  CheckCircle,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { EmptyState } from '../../components/ui';
@@ -56,11 +54,9 @@ const ProductsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Check if user can view products
-  const canViewProducts = isAdmin || canView('Products');
+  // This page is only for users with edit permissions
+  // Users with view-only permissions should use /products route
   const canEditProducts = isAdmin || canEdit('Products');
-  // Users with can_view_products can enter delivery amounts
-  const canEnterDelivery = canViewProducts;
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [deleteProductDialogOpen, setDeleteProductDialogOpen] = useState(false);
@@ -71,35 +67,25 @@ const ProductsPage: React.FC = () => {
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
-  const [selectedProductForDelivery, setSelectedProductForDelivery] = useState<Product | null>(null);
-  const [deliveryFormData, setDeliveryFormData] = useState({
-    amount: '',
-    deliveryDate: new Date().toISOString().split('T')[0],
-    notes: '',
-  });
-  const [submittingDelivery, setSubmittingDelivery] = useState(false);
-  const [deliverySuccess, setDeliverySuccess] = useState<string | null>(null);
-  const [deliveryError, setDeliveryError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only proceed if user has view permission
-    if (!canViewProducts) {
-      setError('You do not have permission to view products.');
+    // Only users with edit permissions can access this page
+    if (!canEditProducts) {
+      setError('You do not have permission to manage products. Users with view-only permissions should use the Products view page.');
       setLoading(false);
       setProducts([]);
       return;
     }
     
-    // Fetch products for users with view permission
+    // Fetch products
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canViewProducts, token]);
+  }, [canEditProducts, token]);
 
   const fetchProducts = async () => {
     // Double-check permission before fetching
-    if (!canViewProducts) {
-      setError('You do not have permission to view products.');
+    if (!canEditProducts) {
+      setError('You do not have permission to manage products.');
       setLoading(false);
       return;
     }
@@ -107,7 +93,7 @@ const ProductsPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('[ProductsPage] Fetching products for user with canViewProducts:', canViewProducts);
+      console.log('[ProductsPage] Fetching products for user with edit permissions');
       
       const response = await axios.get(ApiEndpoints.PRODUCTS.LIST, {
         headers: { Authorization: `Bearer ${token}` },
@@ -116,10 +102,6 @@ const ProductsPage: React.FC = () => {
       const fetchedProducts = response.data || [];
       console.log('[ProductsPage] Fetched products count:', fetchedProducts.length);
       setProducts(fetchedProducts);
-      
-      if (fetchedProducts.length === 0) {
-        console.log('[ProductsPage] No products found in response');
-      }
     } catch (err: any) {
       console.error('[ProductsPage] Fetch products error:', err);
       console.error('[ProductsPage] Error response:', err.response?.data);
@@ -283,75 +265,6 @@ const ProductsPage: React.FC = () => {
     }
   };
 
-  const handleOpenDeliveryDialog = (product: Product) => {
-    setSelectedProductForDelivery(product);
-    setDeliveryFormData({
-      amount: '',
-      deliveryDate: new Date().toISOString().split('T')[0],
-      notes: '',
-    });
-    setDeliveryDialogOpen(true);
-    setDeliveryError(null);
-    setDeliverySuccess(null);
-  };
-
-  const handleCloseDeliveryDialog = () => {
-    setDeliveryDialogOpen(false);
-    setSelectedProductForDelivery(null);
-    setDeliveryFormData({
-      amount: '',
-      deliveryDate: new Date().toISOString().split('T')[0],
-      notes: '',
-    });
-    setDeliveryError(null);
-    setDeliverySuccess(null);
-  };
-
-  const handleSubmitDelivery = async () => {
-    if (!selectedProductForDelivery) return;
-
-    // Check permissions before submitting
-    if (!canEnterDelivery) {
-      setError('You do not have permission to enter delivery amounts.');
-      return;
-    }
-
-    const amountNum = parseFloat(deliveryFormData.amount);
-    if (!deliveryFormData.amount || isNaN(amountNum) || amountNum <= 0) {
-      setError('Please enter a valid positive amount');
-      return;
-    }
-
-    try {
-      setSubmittingDelivery(true);
-      setError(null);
-
-      await axios.post(
-        ApiEndpoints.PRODUCT_DELIVERIES.CREATE,
-        {
-          productId: selectedProductForDelivery.id,
-          amount: amountNum,
-          deliveryDate: deliveryFormData.deliveryDate || new Date().toISOString().split('T')[0],
-          notes: deliveryFormData.notes.trim() || null,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      // Success - close dialog and reset form
-      handleCloseDeliveryDialog();
-      // Optionally show success message or refresh data
-      setError(null);
-    } catch (err: any) {
-      console.error('Delivery submission error:', err);
-      const errorMessage = err.response?.data?.error || 'Failed to enter delivery amount';
-      setError(errorMessage);
-    } finally {
-      setSubmittingDelivery(false);
-    }
-  };
-
   const getImageUrl = (imageUrl: string | null) => {
     if (!imageUrl) return null;
     if (imageUrl.startsWith('http')) return imageUrl;
@@ -378,11 +291,9 @@ const ProductsPage: React.FC = () => {
           <Button variant="outlined" startIcon={<Refresh />} onClick={fetchProducts}>
             Refresh
           </Button>
-          {canEditProducts && (
-            <Button variant="contained" startIcon={<Add />} onClick={handleOpenProductDialog}>
-              Create Product
-            </Button>
-          )}
+          <Button variant="contained" startIcon={<Add />} onClick={handleOpenProductDialog}>
+            Create Product
+          </Button>
         </Box>
       }
     >
@@ -396,20 +307,6 @@ const ProductsPage: React.FC = () => {
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
           <CircularProgress />
-        </Box>
-      ) : !canViewProducts ? (
-        /* No Permission State */
-        <Box
-          sx={{
-            backgroundColor: colors.neutral[900],
-            border: `1px solid ${colors.neutral[800]}`,
-            borderRadius: 3,
-            p: 3,
-          }}
-        >
-          <Alert severity="error">
-            You do not have permission to view products.
-          </Alert>
         </Box>
       ) : products.length === 0 ? (
         /* Empty State - No Products */
@@ -519,39 +416,24 @@ const ProductsPage: React.FC = () => {
                     />
                   </CardContent>
                   <CardActions sx={{ p: 1.5, pt: 0, gap: 0.5, flexWrap: 'wrap' }}>
-                    {canEnterDelivery && (
-                      <Tooltip title={canEdit('Products') ? 'Declare Delivery' : 'Enter Delivery Amount'}>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleOpenDeliveryDialog(product)}
-                          sx={{ color: colors.success[500] }}
-                        >
-                          <ShoppingCart sx={{ fontSize: 18 }} />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    {canEditProducts && (
-                      <>
-                        <Tooltip title="Edit">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEditProduct(product)}
-                            sx={{ color: colors.primary[400] }}
-                          >
-                            <Edit sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteProductClick(product)}
-                            sx={{ color: colors.error[500] }}
-                          >
-                            <Delete sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                      </>
-                    )}
+                    <Tooltip title="Edit">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditProduct(product)}
+                        sx={{ color: colors.primary[400] }}
+                      >
+                        <Edit sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteProductClick(product)}
+                        sx={{ color: colors.error[500] }}
+                      >
+                        <Delete sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
                   </CardActions>
                 </Card>
               </Grid>
@@ -664,86 +546,6 @@ const ProductsPage: React.FC = () => {
           </Button>
           <Button onClick={handleDeleteProductConfirm} color="error" variant="contained">
             Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delivery Dialog */}
-      <Dialog open={deliveryDialogOpen} onClose={handleCloseDeliveryDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {canEdit('Products') ? 'Declare Delivery' : 'Enter Delivery Amount'} - {selectedProductForDelivery?.name}
-        </DialogTitle>
-        <DialogContent>
-          {deliveryError && (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setDeliveryError(null)}>
-              {deliveryError}
-            </Alert>
-          )}
-          {deliverySuccess && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {deliverySuccess}
-            </Alert>
-          )}
-          <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mb: 2 }}>
-            {canEdit('Products')
-              ? 'Declare the amount of products delivered'
-              : 'Enter the amount of products delivered for analytics tracking'}
-          </Typography>
-          <TextField
-            fullWidth
-            label="Delivery Amount"
-            type="number"
-            value={deliveryFormData.amount}
-            onChange={(e) => setDeliveryFormData({ ...deliveryFormData, amount: e.target.value })}
-            required
-            disabled={submittingDelivery}
-            inputProps={{ min: 0, step: 1 }}
-            margin="normal"
-            helperText="Enter the number of products delivered"
-            autoFocus
-          />
-          <TextField
-            fullWidth
-            label="Delivery Date"
-            type="date"
-            value={deliveryFormData.deliveryDate}
-            onChange={(e) => setDeliveryFormData({ ...deliveryFormData, deliveryDate: e.target.value })}
-            required
-            disabled={submittingDelivery}
-            margin="normal"
-            InputLabelProps={{
-              shrink: true,
-            }}
-          />
-          <TextField
-            fullWidth
-            label="Notes (Optional)"
-            multiline
-            rows={3}
-            value={deliveryFormData.notes}
-            onChange={(e) => setDeliveryFormData({ ...deliveryFormData, notes: e.target.value })}
-            disabled={submittingDelivery}
-            margin="normal"
-            placeholder="Add any additional notes about this delivery..."
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeliveryDialog} variant="outlined" disabled={submittingDelivery}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmitDelivery}
-            variant="contained"
-            disabled={submittingDelivery}
-            startIcon={submittingDelivery ? <CircularProgress size={16} /> : <CheckCircle />}
-            sx={{
-              backgroundColor: colors.success[500],
-              '&:hover': {
-                backgroundColor: colors.success[600],
-              },
-            }}
-          >
-            {submittingDelivery ? 'Submitting...' : canEdit('Products') ? 'Declare Delivery' : 'Enter Amount'}
           </Button>
         </DialogActions>
       </Dialog>
