@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { dbGet } from '../database/db';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -48,6 +49,45 @@ export const requireRole = (roles: string[]) => {
     }
 
     next();
+  };
+};
+
+// Check permission from role_permissions table
+export const requirePermission = (permissionField: string) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Admin always has all permissions
+    if (req.user.role === 'admin') {
+      return next();
+    }
+
+    try {
+      // Get role permissions from database
+      const rolePermissions = await dbGet(
+        'SELECT * FROM role_permissions WHERE role = ?',
+        [req.user.role]
+      );
+
+      if (!rolePermissions) {
+        console.warn(`No permissions found for role: ${req.user.role}`);
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+
+      // Check if the specific permission is enabled
+      const hasPermission = (rolePermissions as any)[permissionField] === 1;
+      
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+
+      next();
+    } catch (error: any) {
+      console.error('Permission check error:', error);
+      return res.status(500).json({ error: 'Failed to check permissions' });
+    }
   };
 };
 

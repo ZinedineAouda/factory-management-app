@@ -1,7 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { dbRun, dbGet, dbAll } from '../database/db';
-import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
+import { authenticate, requireRole, requirePermission, AuthRequest } from '../middleware/auth';
 import { calculateAnalytics } from '../services/analyticsService';
 import { linkReportToDrop } from '../services/deliveryDropMonitor';
 import multer from 'multer';
@@ -40,8 +40,8 @@ const upload = multer({
   },
 });
 
-// Create report (Operator only)
-router.post('/', authenticate, requireRole(['operator']), upload.array('images', 5), async (req: any, res) => {
+// Create report (Users with can_edit_reports permission)
+router.post('/', authenticate, requirePermission('can_edit_reports'), upload.array('images', 5), async (req: any, res) => {
   try {
     console.log('=== Report Creation Request ===');
     console.log('Body:', req.body);
@@ -134,14 +134,14 @@ router.post('/', authenticate, requireRole(['operator']), upload.array('images',
   }
 });
 
-// Get reports for a department (Admin, Leader of that department, and Operator who created it)
-router.get('/department/:departmentId', authenticate, async (req: AuthRequest, res) => {
+// Get reports for a department (Users with can_view_reports permission)
+router.get('/department/:departmentId', authenticate, requirePermission('can_view_reports'), async (req: AuthRequest, res) => {
   try {
     const { departmentId } = req.params;
     const userId = req.user!.id;
     const userRole = req.user!.role;
 
-    // Admin can see all reports, leaders can see reports for their department, operators can see their own
+    // Admin can see all reports, others see reports based on their department/data reach
     let reports;
     if (userRole === 'admin') {
       reports = await dbAll(
@@ -194,8 +194,8 @@ router.get('/department/:departmentId', authenticate, async (req: AuthRequest, r
   }
 });
 
-// Get all reports (Admin and Leaders can see reports for their departments)
-router.get('/', authenticate, async (req: AuthRequest, res) => {
+// Get all reports (Users with can_view_reports permission)
+router.get('/', authenticate, requirePermission('can_view_reports'), async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
     const userRole = req.user!.role;
@@ -282,8 +282,8 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Get report details with comments
-router.get('/:id', authenticate, async (req: AuthRequest, res) => {
+// Get report details with comments (Users with can_view_reports permission)
+router.get('/:id', authenticate, requirePermission('can_view_reports'), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
@@ -353,8 +353,8 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Add comment to report (any authenticated user who can view the report)
-router.post('/:id/comments', authenticate, async (req: AuthRequest, res) => {
+// Add comment to report (Users with can_view_reports permission - can view means can comment)
+router.post('/:id/comments', authenticate, requirePermission('can_view_reports'), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const { comment } = req.body;
@@ -414,8 +414,8 @@ router.post('/:id/comments', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Mark report as solved (Operators and Admins only)
-router.put('/:id/solve', authenticate, requireRole(['operator', 'admin']), async (req: AuthRequest, res) => {
+// Mark report as solved (Users with can_edit_reports permission)
+router.put('/:id/solve', authenticate, requirePermission('can_edit_reports'), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
@@ -427,8 +427,8 @@ router.put('/:id/solve', authenticate, requireRole(['operator', 'admin']), async
       return res.status(404).json({ error: 'Report not found' });
     }
 
-    // Check permissions: Operator can only solve their own reports, Admin can solve any
-    if (userRole === 'operator' && report.operator_id !== userId) {
+    // Check permissions: Non-admin users can only solve their own reports
+    if (userRole !== 'admin' && report.operator_id !== userId) {
       return res.status(403).json({ error: 'You can only mark your own reports as solved' });
     }
 

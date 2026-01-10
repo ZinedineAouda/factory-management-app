@@ -36,6 +36,7 @@ import { colors } from '../../theme';
 import axios from 'axios';
 import { ApiEndpoints } from '../../api/endpoints-override';
 import { RootState } from '../../store';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface Product {
   id: string;
@@ -48,9 +49,14 @@ interface Product {
 
 const ProductsPage: React.FC = () => {
   const { token } = useSelector((state: RootState) => state.auth);
+  const { canView, canEdit, isAdmin } = usePermissions();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Check if user can view products
+  const canViewProducts = isAdmin || canView('Products');
+  const canEditProducts = isAdmin || canEdit('Products');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [deleteProductDialogOpen, setDeleteProductDialogOpen] = useState(false);
@@ -63,8 +69,12 @@ const ProductsPage: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!canViewProducts) {
+      setError('You do not have permission to view products.');
+      return;
+    }
     fetchProducts();
-  }, []);
+  }, [canViewProducts]);
 
   const fetchProducts = async () => {
     try {
@@ -243,9 +253,11 @@ const ProductsPage: React.FC = () => {
           <Button variant="outlined" startIcon={<Refresh />} onClick={fetchProducts}>
             Refresh
           </Button>
-          <Button variant="contained" startIcon={<Add />} onClick={handleOpenProductDialog}>
-            Create Product
-          </Button>
+          {canEditProducts && (
+            <Button variant="contained" startIcon={<Add />} onClick={handleOpenProductDialog}>
+              Create Product
+            </Button>
+          )}
         </Box>
       }
     >
@@ -362,26 +374,28 @@ const ProductsPage: React.FC = () => {
                       }}
                     />
                   </CardContent>
-                  <CardActions sx={{ p: 1.5, pt: 0, gap: 0.5 }}>
-                    <Tooltip title="Edit">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditProduct(product)}
-                        sx={{ color: colors.primary[400] }}
-                      >
-                        <Edit sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteProductClick(product)}
-                        sx={{ color: colors.error[500] }}
-                      >
-                        <Delete sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </CardActions>
+                  {canEditProducts && (
+                    <CardActions sx={{ p: 1.5, pt: 0, gap: 0.5 }}>
+                      <Tooltip title="Edit">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditProduct(product)}
+                          sx={{ color: colors.primary[400] }}
+                        >
+                          <Edit sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteProductClick(product)}
+                          sx={{ color: colors.error[500] }}
+                        >
+                          <Delete sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </CardActions>
+                  )}
                 </Card>
               </Grid>
             );

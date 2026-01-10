@@ -1,7 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { dbRun, dbGet, dbAll } from '../database/db';
-import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
+import { authenticate, requireRole, requirePermission, AuthRequest } from '../middleware/auth';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -38,46 +38,19 @@ const upload = multer({
   },
 });
 
-// List all products (Admin and Production Workers)
-router.get('/', authenticate, async (req: AuthRequest, res) => {
+// List all products (Users with can_view_products permission)
+router.get('/', authenticate, requirePermission('can_view_products'), async (req: AuthRequest, res) => {
   try {
-    const userRole = req.user!.role;
-    const userId = req.user!.id;
-
-    // Admin can see all products
-    if (userRole === 'admin') {
-      const products = await dbAll('SELECT * FROM products ORDER BY created_at DESC');
-      return res.json(products);
-    }
-
-    // Production workers can see products
-    if (userRole === 'worker') {
-      // Check if worker is in Production department
-      const userData = await dbGet(
-        `SELECT u.department_id, d.name as department_name 
-         FROM users u 
-         LEFT JOIN departments d ON u.department_id = d.id 
-         WHERE u.id = ?`,
-        [userId]
-      );
-
-      if (userData && userData.department_name && userData.department_name.toLowerCase() === 'production') {
-        const products = await dbAll('SELECT * FROM products ORDER BY created_at DESC');
-        return res.json(products);
-      } else {
-        return res.status(403).json({ error: 'Only workers in Production department can view products' });
-      }
-    }
-
-    res.status(403).json({ error: 'Access denied' });
+    const products = await dbAll('SELECT * FROM products ORDER BY created_at DESC');
+    res.json(products);
   } catch (error: any) {
     console.error('List products error:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
 
-// Get product by ID
-router.get('/:id', authenticate, async (req: AuthRequest, res) => {
+// Get product by ID (Users with can_view_products permission)
+router.get('/:id', authenticate, requirePermission('can_view_products'), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const product = await dbGet('SELECT * FROM products WHERE id = ?', [id]);
@@ -93,8 +66,8 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Create product (Admin only)
-router.post('/', authenticate, requireRole(['admin']), upload.single('image'), async (req: any, res) => {
+// Create product (Users with can_edit_products permission)
+router.post('/', authenticate, requirePermission('can_edit_products'), upload.single('image'), async (req: any, res) => {
   try {
     console.log('=== CREATE PRODUCT REQUEST ===');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
@@ -169,8 +142,8 @@ router.post('/', authenticate, requireRole(['admin']), upload.single('image'), a
   }
 });
 
-// Update product (Admin only)
-router.put('/:id', authenticate, requireRole(['admin']), upload.single('image'), async (req: any, res) => {
+// Update product (Users with can_edit_products permission)
+router.put('/:id', authenticate, requirePermission('can_edit_products'), upload.single('image'), async (req: any, res) => {
   try {
     const { id } = req.params;
     const { name, description } = req.body;
@@ -213,8 +186,8 @@ router.put('/:id', authenticate, requireRole(['admin']), upload.single('image'),
   }
 });
 
-// Delete product (Admin only)
-router.delete('/:id', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+// Delete product (Users with can_edit_products permission)
+router.delete('/:id', authenticate, requirePermission('can_edit_products'), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 

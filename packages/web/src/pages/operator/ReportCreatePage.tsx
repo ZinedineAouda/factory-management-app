@@ -25,10 +25,12 @@ import { colors } from '../../theme';
 import axios from 'axios';
 import { ApiEndpoints } from '../../api/endpoints-override';
 import { RootState } from '../../store';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const ReportCreatePage: React.FC = () => {
   const navigate = useNavigate();
   const { token, user } = useSelector((state: RootState) => state.auth);
+  const { canEdit, isAdmin } = usePermissions();
   const [message, setMessage] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -39,12 +41,17 @@ const ReportCreatePage: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
 
   useEffect(() => {
+    // Check permissions - only users with can_edit_reports can create reports
+    if (!isAdmin && !canEdit('Reports')) {
+      setError('You do not have permission to create reports. You need edit reports permission.');
+    }
+    
     fetchDepartments();
     // Set user's department as default if available
     if (user?.departmentId) {
       setSelectedDepartment(user.departmentId);
     }
-  }, [user]);
+  }, [user, canEdit, isAdmin]);
 
   const fetchDepartments = async () => {
     try {
@@ -97,6 +104,12 @@ const ReportCreatePage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check permissions before submitting
+    if (!isAdmin && !canEdit('Reports')) {
+      setError('You do not have permission to create reports. You need edit reports permission.');
+      return;
+    }
     
     if (!message.trim()) {
       setError('Please describe the issue or trouble you encountered');

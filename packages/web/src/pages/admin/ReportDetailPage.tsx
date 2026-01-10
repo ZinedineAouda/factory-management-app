@@ -62,7 +62,7 @@ const ReportDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { token, user } = useSelector((state: RootState) => state.auth);
-  const { isAdmin, canEdit } = usePermissions();
+  const { isAdmin, canView, canEdit } = usePermissions();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -70,12 +70,20 @@ const ReportDetailPage: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  
+  // Check if user can view reports
+  const canViewReports = isAdmin || canView('Reports');
 
   useEffect(() => {
+    if (!canViewReports) {
+      setError('You do not have permission to view reports.');
+      setLoading(false);
+      return;
+    }
     if (id) {
       fetchReport();
     }
-  }, [id]);
+  }, [id, canViewReports]);
 
   const fetchReport = async () => {
     try {
@@ -143,16 +151,21 @@ const ReportDetailPage: React.FC = () => {
 
   const canMarkAsSolved = () => {
     if (!report) return false;
-    if (isAdmin) return true;
-    if (canEdit('Reports') && user?.role === 'operator' && report.operator_id === user?.id) {
+    // Only users with can_edit_reports permission can mark as solved
+    // Non-admin users can only mark their own reports as solved
+    if (isAdmin || canEdit('Reports')) {
+      // If user is not admin, they can only solve their own reports
+      if (!isAdmin && report.operator_id !== user?.id) {
+        return false;
+      }
       return true;
     }
     return false;
   };
 
   const canComment = () => {
-    // All authenticated users who can view the report can comment
-    return true;
+    // Users with can_view_reports permission can comment (viewing means commenting)
+    return canViewReports;
   };
 
   const getImageUrl = (fileUrl: string) => {

@@ -41,19 +41,27 @@ interface Report {
 
 const ReportsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { token, user } = useSelector((state: RootState) => state.auth);
-  const { isAdmin, canEdit } = usePermissions();
+  const { token } = useSelector((state: RootState) => state.auth);
+  const { isAdmin, canView, canEdit } = usePermissions();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Can create reports if user has can_edit_reports permission
   const canCreateReport = () => {
-    return isAdmin || (canEdit('Reports') && user?.role === 'operator');
+    return isAdmin || canEdit('Reports');
   };
+  
+  // Can view reports if user has can_view_reports permission
+  const canViewReports = isAdmin || canView('Reports');
 
   useEffect(() => {
+    if (!canViewReports) {
+      setError('You do not have permission to view reports.');
+      return;
+    }
     fetchReports();
-  }, []);
+  }, [canViewReports]);
 
   const fetchReports = async () => {
     try {

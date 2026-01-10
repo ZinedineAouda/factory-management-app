@@ -127,7 +127,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/operator/reports/create"
         element={
-          <ProtectedRoute allowedRoles={[UserRole.OPERATOR]}>
+          <ProtectedRoute requiredPermission={{ edit: 'Reports' }}>
             <ReportCreatePage />
           </ProtectedRoute>
         }

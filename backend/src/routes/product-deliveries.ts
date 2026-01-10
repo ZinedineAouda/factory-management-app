@@ -1,16 +1,19 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { dbRun, dbGet, dbAll } from '../database/db';
-import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
+import { authenticate, requireRole, requirePermission, AuthRequest } from '../middleware/auth';
 import { calculateAnalytics } from '../services/analyticsService';
 
 const router = express.Router();
 
-// Create delivery (Production Worker only)
-router.post('/', authenticate, requireRole(['worker']), async (req: AuthRequest, res) => {
+// Create delivery (Users with can_view_products OR can_edit_products permission)
+// - can_view_products: can enter delivery amounts (for analytics tracking)
+// - can_edit_products: can declare delivery amounts
+router.post('/', authenticate, async (req: AuthRequest, res) => {
   try {
     const { productId, amount, deliveryDate, notes } = req.body;
-    const workerId = req.user!.id;
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
 
     if (!productId || !amount) {
       return res.status(400).json({ error: 'Product ID and amount are required' });
@@ -20,17 +23,23 @@ router.post('/', authenticate, requireRole(['worker']), async (req: AuthRequest,
       return res.status(400).json({ error: 'Amount must be a positive number' });
     }
 
-    // Verify worker is in Production department
-    const userData = await dbGet(
-      `SELECT u.department_id, d.name as department_name 
-       FROM users u 
-       LEFT JOIN departments d ON u.department_id = d.id 
-       WHERE u.id = ?`,
-      [workerId]
-    );
+    // Check permissions: Admin always allowed, others need can_view_products OR can_edit_products
+    if (userRole !== 'admin') {
+      const rolePermissions = await dbGet(
+        'SELECT can_view_products, can_edit_products FROM role_permissions WHERE role = ?',
+        [userRole]
+      );
 
-    if (!userData || !userData.department_name || userData.department_name.toLowerCase() !== 'production') {
-      return res.status(403).json({ error: 'Only workers in Production department can create deliveries' });
+      if (!rolePermissions) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+
+      const hasViewPermission = (rolePermissions as any).can_view_products === 1;
+      const hasEditPermission = (rolePermissions as any).can_edit_products === 1;
+
+      if (!hasViewPermission && !hasEditPermission) {
+        return res.status(403).json({ error: 'Insufficient permissions. You need view or edit products permission to create deliveries.' });
+      }
     }
 
     // Verify product exists
@@ -67,8 +76,8 @@ router.post('/', authenticate, requireRole(['worker']), async (req: AuthRequest,
   }
 });
 
-// Get deliveries for a product (Admin and Production Workers)
-router.get('/product/:productId', authenticate, async (req: AuthRequest, res) => {
+// Get deliveries for a product (Users with can_view_products permission)
+router.get('/product/:productId', authenticate, requirePermission('can_view_products'), async (req: AuthRequest, res) => {
   try {
     const { productId } = req.params;
     const userRole = req.user!.role;
@@ -92,8 +101,8 @@ router.get('/product/:productId', authenticate, async (req: AuthRequest, res) =>
          ORDER BY pd.delivery_date DESC, pd.created_at DESC`,
         [productId]
       );
-    } else if (userRole === 'worker') {
-      // Workers can see their own deliveries
+    } else {
+      // Non-admin users see their own deliveries
       deliveries = await dbAll(
         `SELECT pd.*, u.username as worker_username, p.name as product_name
          FROM product_deliveries pd
@@ -103,8 +112,6 @@ router.get('/product/:productId', authenticate, async (req: AuthRequest, res) =>
          ORDER BY pd.delivery_date DESC, pd.created_at DESC`,
         [productId, userId]
       );
-    } else {
-      return res.status(403).json({ error: 'Access denied' });
     }
 
     res.json(deliveries);
@@ -114,16 +121,34 @@ router.get('/product/:productId', authenticate, async (req: AuthRequest, res) =>
   }
 });
 
-// Get all deliveries (Admin only)
-router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+// Get all deliveries (Users with can_view_products permission, admin sees all, others see their own)
+router.get('/', authenticate, requirePermission('can_view_products'), async (req: AuthRequest, res) => {
   try {
-    const deliveries = await dbAll(
-      `SELECT pd.*, u.username as worker_username, p.name as product_name
-       FROM product_deliveries pd
-       JOIN users u ON pd.worker_id = u.id
-       JOIN products p ON pd.product_id = p.id
-       ORDER BY pd.delivery_date DESC, pd.created_at DESC`
-    );
+    const userRole = req.user!.role;
+    const userId = req.user!.id;
+
+    let deliveries;
+    if (userRole === 'admin') {
+      // Admin sees all deliveries
+      deliveries = await dbAll(
+        `SELECT pd.*, u.username as worker_username, p.name as product_name
+         FROM product_deliveries pd
+         JOIN users u ON pd.worker_id = u.id
+         JOIN products p ON pd.product_id = p.id
+         ORDER BY pd.delivery_date DESC, pd.created_at DESC`
+      );
+    } else {
+      // Non-admin users see their own deliveries
+      deliveries = await dbAll(
+        `SELECT pd.*, u.username as worker_username, p.name as product_name
+         FROM product_deliveries pd
+         JOIN users u ON pd.worker_id = u.id
+         JOIN products p ON pd.product_id = p.id
+         WHERE pd.worker_id = ?
+         ORDER BY pd.delivery_date DESC, pd.created_at DESC`,
+        [userId]
+      );
+    }
 
     res.json(deliveries);
   } catch (error: any) {
@@ -132,23 +157,10 @@ router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, r
   }
 });
 
-// Get worker's deliveries (Production Worker only)
-router.get('/my-deliveries', authenticate, requireRole(['worker']), async (req: AuthRequest, res) => {
+// Get worker's deliveries (Users with can_view_products permission)
+router.get('/my-deliveries', authenticate, requirePermission('can_view_products'), async (req: AuthRequest, res) => {
   try {
-    const workerId = req.user!.id;
-
-    // Verify worker is in Production department
-    const userData = await dbGet(
-      `SELECT u.department_id, d.name as department_name 
-       FROM users u 
-       LEFT JOIN departments d ON u.department_id = d.id 
-       WHERE u.id = ?`,
-      [workerId]
-    );
-
-    if (!userData || !userData.department_name || userData.department_name.toLowerCase() !== 'production') {
-      return res.status(403).json({ error: 'Only workers in Production department can view deliveries' });
-    }
+    const userId = req.user!.id;
 
     const deliveries = await dbAll(
       `SELECT pd.*, p.name as product_name
