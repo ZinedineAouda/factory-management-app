@@ -183,7 +183,33 @@ router.get('/personal', authenticate, requireRole(['worker']), async (req: AuthR
 // Get group performance comparison (Users with can_view_analytics permission)
 router.get('/groups', authenticate, requirePermission('can_view_analytics'), async (req: AuthRequest, res) => {
   try {
-    // Get all groups with their delivery performance
+    // Get date range from query parameters (optional)
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    
+    // Build date filter for product_deliveries
+    let dateFilter = '';
+    const dateParams: any[] = [];
+    if (startDate || endDate) {
+      const conditions: string[] = [];
+      if (startDate) {
+        conditions.push('pd.delivery_date >= ?');
+        dateParams.push(startDate);
+      }
+      if (endDate) {
+        // Add one day to endDate to include the entire end date
+        const endDateObj = new Date(endDate);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        const endDateStr = endDateObj.toISOString().split('T')[0];
+        conditions.push('pd.delivery_date < ?');
+        dateParams.push(endDateStr);
+      }
+      if (conditions.length > 0) {
+        dateFilter = 'AND ' + conditions.join(' AND ');
+      }
+    }
+    
+    // Get all groups with their delivery performance (filtered by date if provided)
     const groupPerformance = await dbAll(`
       SELECT 
         g.id,
@@ -198,10 +224,10 @@ router.get('/groups', authenticate, requirePermission('can_view_analytics'), asy
         MAX(pd.created_at) as last_delivery_at
       FROM groups g
       LEFT JOIN users u ON u.group_id = g.id
-      LEFT JOIN product_deliveries pd ON pd.worker_id = u.id
+      LEFT JOIN product_deliveries pd ON pd.worker_id = u.id ${dateFilter}
       GROUP BY g.id, g.name, g.start_time, g.end_time
       ORDER BY total_amount DESC
-    `);
+    `, dateParams);
 
     // Calculate efficiency scores (deliveries per worker)
     const groupStats = groupPerformance.map((group: any) => {
@@ -219,7 +245,29 @@ router.get('/groups', authenticate, requirePermission('can_view_analytics'), asy
       };
     });
 
-    // Get hourly trends for each group (last 24 hours)
+    // Get hourly trends for each group (within date range if provided, otherwise last 24 hours)
+    let hourlyDateFilter = '';
+    const hourlyDateParams: any[] = [];
+    if (startDate || endDate) {
+      const conditions: string[] = [];
+      if (startDate) {
+        conditions.push('pd.delivery_date >= ?');
+        hourlyDateParams.push(startDate);
+      }
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        const endDateStr = endDateObj.toISOString().split('T')[0];
+        conditions.push('pd.delivery_date < ?');
+        hourlyDateParams.push(endDateStr);
+      }
+      if (conditions.length > 0) {
+        hourlyDateFilter = 'AND ' + conditions.join(' AND ');
+      }
+    } else {
+      hourlyDateFilter = "AND pd.created_at >= datetime('now', '-24 hours')";
+    }
+    
     const hourlyTrends = await dbAll(`
       SELECT 
         g.id as group_id,
@@ -229,11 +277,10 @@ router.get('/groups', authenticate, requirePermission('can_view_analytics'), asy
         SUM(pd.amount) as amount
       FROM groups g
       LEFT JOIN users u ON u.group_id = g.id
-      LEFT JOIN product_deliveries pd ON pd.worker_id = u.id 
-        AND pd.created_at >= datetime('now', '-24 hours')
+      LEFT JOIN product_deliveries pd ON pd.worker_id = u.id ${hourlyDateFilter}
       GROUP BY g.id, g.name, hour
       ORDER BY g.name, hour
-    `);
+    `, hourlyDateParams);
 
     res.json({
       groups: groupStats,
