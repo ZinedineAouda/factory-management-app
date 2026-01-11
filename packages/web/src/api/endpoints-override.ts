@@ -5,24 +5,32 @@ const getApiBaseUrl = (): string => {
   
   // Development mode - use proxy
   if (import.meta.env.DEV) {
+    console.log('🔧 [DEBUG] Development mode: Using proxy API at /api');
     return '/api';
   }
   
   // Production mode
+  console.log('🔧 [DEBUG] Production mode detected');
+  console.log('🔧 [DEBUG] VITE_API_URL from env:', envUrl);
+  
   if (envUrl) {
     // Remove trailing slashes
     let url = envUrl.trim().replace(/\/+$/, '');
+    console.log('🔧 [DEBUG] After trimming:', url);
     
     // If it doesn't start with http:// or https://, add https://
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = `https://${url}`;
+      console.log('🔧 [DEBUG] Added https://:', url);
     }
     
     // Ensure /api is included in the base URL
     if (!url.endsWith('/api')) {
       url = `${url}/api`;
+      console.log('🔧 [DEBUG] Added /api suffix:', url);
     }
     
+    console.log('✅ [DEBUG] Final API_BASE_URL:', url);
     return url;
   }
   
@@ -30,6 +38,7 @@ const getApiBaseUrl = (): string => {
   if (import.meta.env.PROD) {
     console.error('❌ CRITICAL: VITE_API_URL not set in production!');
     console.error('Please set VITE_API_URL in Vercel environment variables.');
+    console.error('Expected format: https://your-backend.up.railway.app/api');
     // Return empty string to cause obvious failures rather than silent localhost calls
     return '';
   }
@@ -39,6 +48,7 @@ const getApiBaseUrl = (): string => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+console.log('🔧 [DEBUG] API_BASE_URL initialized to:', API_BASE_URL);
 
 // Re-export with correct base URL
 export const ApiEndpoints = {

@@ -53,6 +53,7 @@ const createAxiosInstance = (): AxiosInstance => {
   }
   
   // Production mode - MUST have VITE_API_URL set
+  console.log('🔧 [DEBUG] Production mode - VITE_API_URL:', envUrl);
   if (!envUrl) {
     const errorMsg = '❌ CRITICAL: VITE_API_URL environment variable is not set in production!';
     console.error(errorMsg);
@@ -74,19 +75,22 @@ const createAxiosInstance = (): AxiosInstance => {
   
   // Process production URL
   let url = envUrl.trim().replace(/\/+$/, '');
+  console.log('🔧 [DEBUG] After trim:', url);
   
   // Ensure protocol
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = `https://${url}`;
+    console.log('🔧 [DEBUG] Added https://:', url);
   }
   
   // Ensure /api suffix
   if (!url.endsWith('/api')) {
     url = `${url}/api`;
+    console.log('🔧 [DEBUG] Added /api suffix:', url);
   }
   
   const API_BASE_URL = url;
-  console.log('🌐 Production mode: Using API at', API_BASE_URL);
+  console.log('🌐 [DEBUG] Production mode: Using API at', API_BASE_URL);
   
   const instance = axios.create({
     baseURL: API_BASE_URL,
@@ -145,12 +149,14 @@ const setupInterceptors = (instance: AxiosInstance): AxiosInstance => {
         }
         
         // Log detailed error for debugging
-        console.error('🌐 Network Error Details:', {
+        console.error('🌐 [DEBUG] Network Error Details:', {
           code: error?.code,
           message: error?.message,
           baseURL: baseURL,
           url: error?.config?.url,
           method: error?.config?.method,
+          fullURL: error?.config?.baseURL + error?.config?.url,
+          stack: error?.stack,
         });
       }
 

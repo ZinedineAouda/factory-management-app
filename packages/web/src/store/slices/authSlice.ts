@@ -43,12 +43,22 @@ export const login = createAsyncThunk(
   'auth/login',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
-      const response = await axios.post<AuthResponse>(ApiEndpoints.AUTH.LOGIN, credentials);
+      const loginUrl = ApiEndpoints.AUTH.LOGIN;
+      console.log('🔧 [DEBUG] Login attempt - URL:', loginUrl);
+      console.log('🔧 [DEBUG] Login attempt - Username:', credentials.username);
+      const response = await axios.post<AuthResponse>(loginUrl, credentials);
+      console.log('✅ [DEBUG] Login successful');
       saveAuth(response.data.token, response.data.user);
       return response.data;
     } catch (error: any) {
+      console.error('❌ [DEBUG] Login error:', error);
+      console.error('❌ [DEBUG] Error code:', error?.code);
+      console.error('❌ [DEBUG] Error message:', error?.message);
+      console.error('❌ [DEBUG] Error response:', error?.response);
+      console.error('❌ [DEBUG] Error request:', error?.request);
       // Use helper to safely extract error message
       const errorMessage = extractErrorMessage(error) || 'Login failed';
+      console.error('❌ [DEBUG] Extracted error message:', errorMessage);
       return rejectWithValue(errorMessage);
     }
   }
