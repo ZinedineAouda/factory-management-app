@@ -4,9 +4,11 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
-// Use persistent storage path for production (Railway uses /data, Vercel uses /tmp)
+// Use persistent storage path for production (Railway uses /data)
 // IMPORTANT: Always check for existing database files first to preserve data
 const getDatabasePath = (): string => {
+  const dbFileName = 'factory_management.db';
+  
   // Check for custom database path in environment variable (highest priority)
   if (process.env.DATABASE_PATH) {
     const customPath = process.env.DATABASE_PATH;
@@ -15,59 +17,69 @@ const getDatabasePath = (): string => {
   }
 
   // List of possible database locations (in order of preference)
-  const possiblePaths = [
-    // 1. Original project directory (check first to preserve existing data)
-    path.join(__dirname, '../../factory_management.db'),
-    // 2. Railway volume path
-    process.env.RAILWAY_VOLUME_PATH ? path.join(process.env.RAILWAY_VOLUME_PATH, 'factory_management.db') : null,
-    // 3. /data directory (persistent storage)
+  // Railway volumes are typically mounted at /data, so prioritize that
+  const possiblePaths: string[] = [
+    // 1. /data directory (Railway persistent volume - highest priority for production)
     '/data/factory_management.db',
-  ].filter((p): p is string => p !== null);
+    // 2. Railway volume path from environment variable
+    process.env.RAILWAY_VOLUME_PATH ? path.join(process.env.RAILWAY_VOLUME_PATH, dbFileName) : '',
+    // 3. Original project directory (for local development)
+    path.join(__dirname, '../../factory_management.db'),
+  ].filter((p): p is string => p !== '' && p !== null);
 
   // Check if any existing database file exists
   for (const dbPath of possiblePaths) {
     if (fs.existsSync(dbPath)) {
-      console.log(`📁 Found existing database file: ${dbPath}`);
+      console.log(`✅ Found existing database file: ${dbPath}`);
       console.log(`✅ Using existing database to preserve your data`);
       return dbPath;
     }
   }
 
   // No existing database found - use the best available location
-  // Railway persistent storage (recommended for production)
-  if (process.env.RAILWAY_VOLUME_PATH) {
-    const railwayPath = path.join(process.env.RAILWAY_VOLUME_PATH, 'factory_management.db');
-    const dir = path.dirname(railwayPath);
-    if (!fs.existsSync(dir)) {
-      try {
-        fs.mkdirSync(dir, { recursive: true });
-        console.log(`📁 Created Railway volume directory: ${dir}`);
-      } catch (error: any) {
-        console.warn(`⚠️ Could not create Railway volume directory: ${error.message}`);
-      }
-    }
-    console.log(`📁 Using Railway volume path: ${railwayPath}`);
-    return railwayPath;
-  }
-
-  // Try /data directory (common persistent storage location)
-  const dataPath = '/data/factory_management.db';
-  if (process.env.NODE_ENV === 'production') {
+  // For production (Railway), use /data directory (persistent volume)
+  if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+    const dataPath = '/data/factory_management.db';
     try {
-      if (!fs.existsSync('/data')) {
-        fs.mkdirSync('/data', { recursive: true });
-        console.log(`📁 Created /data directory`);
+      // Check if /data directory exists or can be accessed (Railway volume mount)
+      if (fs.existsSync('/data')) {
+        console.log(`📁 Using Railway volume at /data: ${dataPath}`);
+        return dataPath;
+      } else {
+        // Try to use RAILWAY_VOLUME_PATH if set
+        if (process.env.RAILWAY_VOLUME_PATH) {
+          const railwayPath = path.join(process.env.RAILWAY_VOLUME_PATH, dbFileName);
+          const dir = path.dirname(railwayPath);
+          if (!fs.existsSync(dir)) {
+            try {
+              fs.mkdirSync(dir, { recursive: true });
+              console.log(`📁 Created Railway volume directory: ${dir}`);
+            } catch (error: any) {
+              console.warn(`⚠️ Could not create Railway volume directory: ${error.message}`);
+            }
+          }
+          console.log(`📁 Using Railway volume path: ${railwayPath}`);
+          return railwayPath;
+        }
+        // Fallback: try to create /data (may work if volume is mounted but dir doesn't exist)
+        try {
+          fs.mkdirSync('/data', { recursive: true });
+          console.log(`📁 Created /data directory: ${dataPath}`);
+          return dataPath;
+        } catch (error: any) {
+          console.warn(`⚠️ Could not access /data directory. Make sure Railway volume is mounted at /data`);
+          console.warn(`⚠️ Error: ${error.message}`);
+        }
       }
-      console.log(`📁 Using /data directory: ${dataPath}`);
-      return dataPath;
     } catch (error: any) {
-      console.warn(`⚠️ Could not create /data directory: ${error.message}`);
+      console.warn(`⚠️ Error checking /data directory: ${error.message}`);
     }
   }
 
   // Fallback to project directory (for local development)
   const fallbackPath = path.join(__dirname, '../../factory_management.db');
   console.log(`📁 Using fallback path (project directory): ${fallbackPath}`);
+  console.log(`ℹ️  For production on Railway, mount a volume at /data to persist your database`);
   return fallbackPath;
 };
 
