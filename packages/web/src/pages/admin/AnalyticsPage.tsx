@@ -12,6 +12,7 @@ import {
   LinearProgress,
   TextField,
   Paper,
+  Chip,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -37,7 +38,18 @@ interface ProductionAnalytics {
   deliveriesByDate: Array<{ date: string; amount: number }>;
 }
 
-interface MaintenanceAnalytics {
+interface GroupPerformance {
+  id: string;
+  group_name: string;
+  total_deliveries: number;
+  total_amount: number;
+  active_workers: number;
+  products_handled: number;
+  avg_delivery_amount: number;
+  efficiency_score: number;
+}
+
+interface ReportsAnalytics {
   totalReports: number;
   reportsByGroup: Array<{ groupName: string; count: number }>;
   averageResponseTime: number;
@@ -50,7 +62,9 @@ const AnalyticsPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productionData, setProductionData] = useState<ProductionAnalytics | null>(null);
-  const [maintenanceData, setMaintenanceData] = useState<MaintenanceAnalytics | null>(null);
+  const [reportsData, setReportsData] = useState<ReportsAnalytics | null>(null);
+  const [groupsData, setGroupsData] = useState<GroupPerformance[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
   
   // Date range state - default to last 30 days
   const getDefaultStartDate = () => {
@@ -68,6 +82,9 @@ const AnalyticsPage: React.FC = () => {
 
   useEffect(() => {
     fetchAnalytics();
+    if (tabValue === 0) {
+      fetchGroupsAnalytics();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabValue, startDate, endDate]);
 
@@ -100,12 +117,12 @@ const AnalyticsPage: React.FC = () => {
           deliveriesByDate: data.deliveriesByDate || [],
         });
       } else {
-        const maintenanceUrl = queryString ? `${ApiEndpoints.ANALYTICS.MAINTENANCE}?${queryString}` : ApiEndpoints.ANALYTICS.MAINTENANCE;
-        const response = await axios.get(maintenanceUrl, {
+        const reportsUrl = queryString ? `${ApiEndpoints.ANALYTICS.MAINTENANCE}?${queryString}` : ApiEndpoints.ANALYTICS.MAINTENANCE;
+        const response = await axios.get(reportsUrl, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = response.data || {};
-        setMaintenanceData({
+        setReportsData({
           totalReports: data.totalReports || 0,
           reportsByGroup: data.reportsByGroup || [],
           averageResponseTime: data.averageResponseTime || 0,
@@ -123,7 +140,7 @@ const AnalyticsPage: React.FC = () => {
           deliveriesByDate: [],
         });
       } else {
-        setMaintenanceData({
+        setReportsData({
           totalReports: 0,
           reportsByGroup: [],
           averageResponseTime: 0,
@@ -131,6 +148,21 @@ const AnalyticsPage: React.FC = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchGroupsAnalytics = async () => {
+    try {
+      setLoadingGroups(true);
+      const response = await axios.get(ApiEndpoints.ANALYTICS.GROUPS, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setGroupsData(response.data.groups || []);
+    } catch (err: any) {
+      console.error('Fetch groups analytics error:', err);
+      setGroupsData([]);
+    } finally {
+      setLoadingGroups(false);
     }
   };
 
@@ -160,7 +192,7 @@ const AnalyticsPage: React.FC = () => {
   return (
     <PageContainer
       title="Analytics"
-      subtitle="Track production and maintenance performance metrics"
+      subtitle="Track production and reports performance metrics"
       actions={
         <Button
           variant="outlined"
@@ -271,7 +303,7 @@ const AnalyticsPage: React.FC = () => {
       >
         <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
           <Tab label="Production Analytics" />
-          <Tab label="Maintenance Analytics" />
+          <Tab label="Reports Analytics" />
         </Tabs>
       </Box>
 
@@ -430,14 +462,134 @@ const AnalyticsPage: React.FC = () => {
                 )}
               </Box>
             </Grid>
+
+            {/* Best Performing Groups */}
+            <Grid item xs={12}>
+              <Box
+                sx={{
+                  backgroundColor: colors.neutral[900],
+                  border: `1px solid ${colors.neutral[800]}`,
+                  borderRadius: 3,
+                  p: 3,
+                }}
+              >
+                <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 3 }}>
+                  Best Performing Groups
+                </Typography>
+                {loadingGroups ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : groupsData.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {groupsData.slice(0, 6).map((group, index) => (
+                      <Grid item xs={12} sm={6} md={4} key={group.id}>
+                        <Box
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            backgroundColor: colors.neutral[950],
+                            border: `1px solid ${index === 0 ? colors.warning[500] : colors.neutral[800]}`,
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              borderColor: index === 0 ? colors.warning[500] : colors.neutral[700],
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                            <Box>
+                              <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: colors.neutral[100], mb: 0.5 }}>
+                                {group.group_name}
+                              </Typography>
+                              {index === 0 && (
+                                <Chip 
+                                  label="Top Performer" 
+                                  size="small" 
+                                  sx={{ 
+                                    backgroundColor: colors.warning[500], 
+                                    color: colors.neutral[950], 
+                                    fontSize: '0.7rem', 
+                                    height: 20,
+                                    fontWeight: 600,
+                                  }} 
+                                />
+                              )}
+                            </Box>
+                          </Box>
+                          <Grid container spacing={1.5}>
+                            <Grid item xs={6}>
+                              <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
+                                Total Amount
+                              </Typography>
+                              <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.success[500] }}>
+                                {group.total_amount?.toLocaleString() || '0'}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
+                                Deliveries
+                              </Typography>
+                              <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.primary[500] }}>
+                                {group.total_deliveries || 0}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
+                                Workers
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[300] }}>
+                                {group.active_workers || 0}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
+                                Avg/Delivery
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.info[500] }}>
+                                {typeof group.avg_delivery_amount === 'number' ? group.avg_delivery_amount.toFixed(0) : parseFloat(String(group.avg_delivery_amount || '0')).toFixed(0)}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12}>
+                              <Box sx={{ mt: 1 }}>
+                                <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mb: 0.5 }}>
+                                  Efficiency: {group.efficiency_score?.toFixed(2) || '0'} deliveries/worker
+                                </Typography>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={groupsData.length > 0 && groupsData[0].efficiency_score > 0 
+                                    ? (group.efficiency_score / groupsData[0].efficiency_score) * 100 
+                                    : 0}
+                                  sx={{
+                                    height: 4,
+                                    borderRadius: 1,
+                                    backgroundColor: colors.neutral[800],
+                                    '& .MuiLinearProgress-bar': {
+                                      backgroundColor: index === 0 ? colors.warning[500] : colors.info[500],
+                                    },
+                                  }}
+                                />
+                              </Box>
+                            </Grid>
+                          </Grid>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[500], textAlign: 'center', py: 4 }}>
+                    No group performance data available
+                  </Typography>
+                )}
+              </Box>
+            </Grid>
           </Grid>
         </>
-      ) : tabValue === 1 && maintenanceData ? (
+      ) : tabValue === 1 && reportsData ? (
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
             <StatCard
               title="Total Reports"
-              value={maintenanceData.totalReports}
+              value={reportsData.totalReports}
               icon={<Assignment />}
               color="primary"
             />
@@ -454,9 +606,9 @@ const AnalyticsPage: React.FC = () => {
               <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 3 }}>
                 Reports by Group
               </Typography>
-              {maintenanceData.reportsByGroup.length > 0 ? (
+              {reportsData.reportsByGroup.length > 0 ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {maintenanceData.reportsByGroup.map((item, index) => (
+                  {reportsData.reportsByGroup.map((item, index) => (
                     <Box key={index}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[300] }}>
@@ -468,7 +620,7 @@ const AnalyticsPage: React.FC = () => {
                       </Box>
                       <LinearProgress
                         variant="determinate"
-                        value={maintenanceData.totalReports > 0 ? (item.count / maintenanceData.totalReports) * 100 : 0}
+                        value={reportsData.totalReports > 0 ? (item.count / reportsData.totalReports) * 100 : 0}
                         sx={{
                           height: 6,
                           borderRadius: 1,

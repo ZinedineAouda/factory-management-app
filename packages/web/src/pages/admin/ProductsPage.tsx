@@ -38,6 +38,7 @@ import {
   Image as ImageIcon,
   LocalShipping,
   Close,
+  Analytics,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { EmptyState } from '../../components/ui';
@@ -97,6 +98,12 @@ const ProductsPage: React.FC = () => {
   const [deliveriesDialogOpen, setDeliveriesDialogOpen] = useState(false);
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loadingDeliveries, setLoadingDeliveries] = useState(false);
+  
+  // Product analytics dialog
+  const [productAnalyticsDialogOpen, setProductAnalyticsDialogOpen] = useState(false);
+  const [selectedProductForAnalytics, setSelectedProductForAnalytics] = useState<Product | null>(null);
+  const [productAnalytics, setProductAnalytics] = useState<any>(null);
+  const [loadingProductAnalytics, setLoadingProductAnalytics] = useState(false);
 
   useEffect(() => {
     // Safety check: Redirect message if view-only user somehow accesses this page
@@ -167,6 +174,33 @@ const ProductsPage: React.FC = () => {
   const handleCloseDeliveriesDialog = () => {
     setDeliveriesDialogOpen(false);
     setDeliveries([]);
+  };
+
+  const fetchProductAnalytics = async (product: Product) => {
+    try {
+      setLoadingProductAnalytics(true);
+      const response = await axios.get(ApiEndpoints.ANALYTICS.PRODUCT(product.id), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setProductAnalytics(response.data);
+    } catch (err: any) {
+      console.error('Fetch product analytics error:', err);
+      setProductAnalytics(null);
+    } finally {
+      setLoadingProductAnalytics(false);
+    }
+  };
+
+  const handleOpenProductAnalytics = (product: Product) => {
+    setSelectedProductForAnalytics(product);
+    setProductAnalyticsDialogOpen(true);
+    fetchProductAnalytics(product);
+  };
+
+  const handleCloseProductAnalyticsDialog = () => {
+    setProductAnalyticsDialogOpen(false);
+    setSelectedProductForAnalytics(null);
+    setProductAnalytics(null);
   };
 
   const handleOpenProductDialog = () => {
@@ -478,6 +512,16 @@ const ProductsPage: React.FC = () => {
                     />
                   </CardContent>
                   <CardActions sx={{ p: 1.5, pt: 0, gap: 0.5, flexWrap: 'wrap' }}>
+                    {/* Analytics button - View product analytics */}
+                    <Tooltip title="View Analytics">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenProductAnalytics(product)}
+                        sx={{ color: colors.info[500] }}
+                      >
+                        <Analytics sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
                     {/* Edit and Delete buttons - Only available on this admin page */}
                     <Tooltip title="Edit">
                       <IconButton
@@ -684,6 +728,202 @@ const ProductsPage: React.FC = () => {
           </DialogActions>
         </Dialog>
       )}
+
+      {/* Product Analytics Dialog */}
+      <Dialog open={productAnalyticsDialogOpen} onClose={handleCloseProductAnalyticsDialog} maxWidth="lg" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6">{selectedProductForAnalytics?.name}</Typography>
+              <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
+                Product Analytics & Delivery History
+              </Typography>
+            </Box>
+            <IconButton onClick={handleCloseProductAnalyticsDialog} size="small">
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {loadingProductAnalytics ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : productAnalytics ? (
+            <>
+              {/* Analytics Stats */}
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      backgroundColor: colors.neutral[900],
+                      border: `1px solid ${colors.neutral[800]}`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mb: 0.5 }}>
+                      Total Deliveries
+                    </Typography>
+                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: colors.primary[400] }}>
+                      {productAnalytics.totalDeliveries || 0}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      backgroundColor: colors.neutral[900],
+                      border: `1px solid ${colors.neutral[800]}`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mb: 0.5 }}>
+                      Total Amount
+                    </Typography>
+                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: colors.success[500] }}>
+                      {productAnalytics.totalAmount?.toLocaleString() || '0'}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      backgroundColor: colors.neutral[900],
+                      border: `1px solid ${colors.neutral[800]}`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mb: 0.5 }}>
+                      Average Amount
+                    </Typography>
+                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, color: colors.info[500] }}>
+                      {productAnalytics.avgAmount?.toFixed(0) || '0'}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      backgroundColor: colors.neutral[900],
+                      border: `1px solid ${colors.neutral[800]}`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mb: 0.5 }}>
+                      Best Group
+                    </Typography>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.warning[500] }}>
+                      {productAnalytics.bestGroup?.groupName || 'N/A'}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[400], mt: 0.5 }}>
+                      {productAnalytics.bestGroup?.totalAmount?.toLocaleString() || '0'} total
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {/* Best Groups */}
+              {productAnalytics.groupsByPerformance && productAnalytics.groupsByPerformance.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 2 }}>
+                    Performance by Group
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {productAnalytics.groupsByPerformance.slice(0, 3).map((group: any, index: number) => (
+                      <Grid item xs={12} sm={4} key={index}>
+                        <Box
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            backgroundColor: colors.neutral[900],
+                            border: `1px solid ${index === 0 ? colors.warning[500] : colors.neutral[800]}`,
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100] }}>
+                              {group.groupName}
+                            </Typography>
+                            {index === 0 && (
+                              <Chip label="Best" size="small" sx={{ backgroundColor: colors.warning[500], color: colors.neutral[950], fontSize: '0.7rem', height: 20 }} />
+                            )}
+                          </Box>
+                          <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
+                            {group.deliveryCount} deliveries
+                          </Typography>
+                          <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.success[500] }}>
+                            {group.totalAmount?.toLocaleString() || '0'} total
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+
+              {/* Delivery History Table */}
+              <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 2 }}>
+                Delivery History
+              </Typography>
+              {productAnalytics.deliveries && productAnalytics.deliveries.length > 0 ? (
+                <TableContainer component={Paper} sx={{ backgroundColor: colors.neutral[900], border: `1px solid ${colors.neutral[800]}` }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Worker</TableCell>
+                        <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Group</TableCell>
+                        <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }} align="right">Amount</TableCell>
+                        <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Date</TableCell>
+                        <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Time</TableCell>
+                        <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Notes</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {productAnalytics.deliveries.map((delivery: any) => (
+                        <TableRow key={delivery.id} hover>
+                          <TableCell sx={{ color: colors.neutral[100] }}>{delivery.worker_username || 'Unknown'}</TableCell>
+                          <TableCell sx={{ color: colors.neutral[300] }}>{delivery.group_name || 'No Group'}</TableCell>
+                          <TableCell align="right" sx={{ color: colors.success[500], fontWeight: 600 }}>
+                            {delivery.amount?.toLocaleString() || '0'}
+                          </TableCell>
+                          <TableCell sx={{ color: colors.neutral[300] }}>
+                            {delivery.delivery_date ? new Date(delivery.delivery_date).toLocaleDateString() : 'N/A'}
+                          </TableCell>
+                          <TableCell sx={{ color: colors.primary[400], fontWeight: 500, fontFamily: 'monospace' }}>
+                            {delivery.delivery_hour || 'N/A'}
+                          </TableCell>
+                          <TableCell sx={{ color: colors.neutral[400], maxWidth: 150 }}>
+                            {delivery.notes || '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Alert severity="info">No delivery history available for this product.</Alert>
+              )}
+            </>
+          ) : (
+            <Alert severity="error">Failed to load product analytics.</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseProductAnalyticsDialog}>Close</Button>
+          {selectedProductForAnalytics && (
+            <Button onClick={() => fetchProductAnalytics(selectedProductForAnalytics)} variant="outlined" startIcon={<Refresh />}>
+              Refresh
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </PageContainer>
   );
 };

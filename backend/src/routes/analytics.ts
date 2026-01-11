@@ -245,6 +245,130 @@ router.get('/groups', authenticate, requireRole(['admin']), async (req: AuthRequ
   }
 });
 
+// Get product-specific analytics (Admin only)
+router.get('/product/:productId', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { productId } = req.params;
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    
+    // Verify product exists
+    const product = await dbAll('SELECT id, name, description, image_url FROM products WHERE id = ?', [productId]);
+    if (!product || product.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Build date filter
+    let dateFilter = '';
+    const params: any[] = [productId];
+    if (startDate || endDate) {
+      const conditions: string[] = ['pd.product_id = ?'];
+      if (startDate) {
+        conditions.push('pd.delivery_date >= ?');
+        params.push(startDate);
+      }
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        const endDateStr = endDateObj.toISOString().split('T')[0];
+        conditions.push('pd.delivery_date < ?');
+        params.push(endDateStr);
+      }
+      dateFilter = 'WHERE ' + conditions.join(' AND ');
+    } else {
+      dateFilter = 'WHERE pd.product_id = ?';
+    }
+    
+    // Get all deliveries for this product
+    const deliveries = await dbAll(`
+      SELECT pd.*, u.username as worker_username, u.id as worker_id,
+             g.name as group_name, g.id as group_id,
+             strftime('%H:%M', pd.created_at) as delivery_hour
+      FROM product_deliveries pd
+      JOIN users u ON pd.worker_id = u.id
+      LEFT JOIN groups g ON u.group_id = g.id
+      ${dateFilter}
+      ORDER BY pd.delivery_date DESC, pd.created_at DESC
+    `, params);
+    
+    const totalDeliveries = deliveries.length;
+    const totalAmount = deliveries.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+    const avgAmount = totalDeliveries > 0 ? totalAmount / totalDeliveries : 0;
+    
+    // Group by group (best performing group)
+    const groupMap = new Map<string, { count: number; totalAmount: number }>();
+    deliveries.forEach((delivery: any) => {
+      const groupName = delivery.group_name || 'Unassigned';
+      const existing = groupMap.get(groupName) || { count: 0, totalAmount: 0 };
+      groupMap.set(groupName, {
+        count: existing.count + 1,
+        totalAmount: existing.totalAmount + (delivery.amount || 0)
+      });
+    });
+    const groupsByPerformance = Array.from(groupMap.entries())
+      .map(([groupName, data]) => ({
+        groupName,
+        deliveryCount: data.count,
+        totalAmount: data.totalAmount,
+        avgAmount: data.count > 0 ? data.totalAmount / data.count : 0
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount);
+    const bestGroup = groupsByPerformance.length > 0 ? groupsByPerformance[0] : null;
+    
+    // Group by worker
+    const workerMap = new Map<string, { count: number; totalAmount: number }>();
+    deliveries.forEach((delivery: any) => {
+      const workerName = delivery.worker_username || 'Unknown';
+      const existing = workerMap.get(workerName) || { count: 0, totalAmount: 0 };
+      workerMap.set(workerName, {
+        count: existing.count + 1,
+        totalAmount: existing.totalAmount + (delivery.amount || 0)
+      });
+    });
+    const workersByPerformance = Array.from(workerMap.entries())
+      .map(([workerName, data]) => ({
+        workerName,
+        deliveryCount: data.count,
+        totalAmount: data.totalAmount,
+        avgAmount: data.count > 0 ? data.totalAmount / data.count : 0
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount);
+    
+    // Group by date (trends)
+    const dateMap = new Map<string, { count: number; totalAmount: number }>();
+    deliveries.forEach((delivery: any) => {
+      const dateKey = new Date(delivery.delivery_date).toISOString().split('T')[0];
+      const existing = dateMap.get(dateKey) || { count: 0, totalAmount: 0 };
+      dateMap.set(dateKey, {
+        count: existing.count + 1,
+        totalAmount: existing.totalAmount + (delivery.amount || 0)
+      });
+    });
+    const deliveriesByDate = Array.from(dateMap.entries())
+      .map(([date, data]) => ({
+        date,
+        deliveryCount: data.count,
+        totalAmount: data.totalAmount
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    
+    res.json({
+      product: product[0],
+      totalDeliveries,
+      totalAmount,
+      avgAmount,
+      bestGroup,
+      groupsByPerformance,
+      workersByPerformance: workersByPerformance.slice(0, 10), // Top 10 workers
+      deliveriesByDate,
+      deliveries: deliveries.slice(0, 100), // Latest 100 deliveries for history
+    });
+  } catch (error: any) {
+    console.error('Get product analytics error:', error);
+    res.status(500).json({ error: 'Failed to fetch product analytics' });
+  }
+});
+
 // Get delivery drops and causes (Admin only)
 router.get('/delivery-drops', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {

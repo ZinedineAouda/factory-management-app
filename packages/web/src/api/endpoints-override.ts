@@ -90,6 +90,7 @@ export const ApiEndpoints = {
     MAINTENANCE: `${API_BASE_URL}/analytics/maintenance`,
     PERSONAL: `${API_BASE_URL}/analytics/personal`,
     GROUPS: `${API_BASE_URL}/analytics/groups`,
+    PRODUCT: (productId: string) => `${API_BASE_URL}/analytics/product/${productId}`,
     DELIVERY_DROPS: `${API_BASE_URL}/analytics/delivery-drops`,
     KPIS: `${API_BASE_URL}/analytics/kpis`,
     REFRESH: `${API_BASE_URL}/analytics/refresh`,
