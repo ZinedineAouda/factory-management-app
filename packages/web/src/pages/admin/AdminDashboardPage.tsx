@@ -11,7 +11,6 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
-  TextField,
 } from '@mui/material';
 import {
   People,
@@ -23,6 +22,9 @@ import {
   CalendarToday,
   LocalShipping,
   Refresh,
+  ChevronLeft,
+  ChevronRight,
+  Today,
 } from '@mui/icons-material';
 import {
   AreaChart,
@@ -87,18 +89,62 @@ const AdminDashboardPage: React.FC = () => {
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   
   // Date range state - default to last 30 days (same as analytics page)
-  const getDefaultStartDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split('T')[0];
+  type PeriodType = 'today' | '7days' | '30days' | '90days';
+  const [period, setPeriod] = useState<PeriodType>('30days');
+  const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  
+  const getStartDate = (periodType: PeriodType, endDateStr: string) => {
+    const end = new Date(endDateStr);
+    const start = new Date(end);
+    
+    switch (periodType) {
+      case 'today':
+        return endDateStr; // Same day
+      case '7days':
+        start.setDate(start.getDate() - 6); // Last 7 days (including today)
+        break;
+      case '30days':
+        start.setDate(start.getDate() - 29); // Last 30 days (including today)
+        break;
+      case '90days':
+        start.setDate(start.getDate() - 89); // Last 90 days (including today)
+        break;
+    }
+    return start.toISOString().split('T')[0];
   };
   
-  const getDefaultEndDate = () => {
-    return new Date().toISOString().split('T')[0];
+  const startDate = getStartDate(period, endDate);
+  
+  const handlePreviousPeriod = () => {
+    const current = new Date(endDate);
+    const days = period === 'today' ? 1 : period === '7days' ? 7 : period === '30days' ? 30 : 90;
+    current.setDate(current.getDate() - days);
+    setEndDate(current.toISOString().split('T')[0]);
   };
   
-  const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
-  const [endDate, setEndDate] = useState<string>(getDefaultEndDate());
+  const handleNextPeriod = () => {
+    const current = new Date(endDate);
+    const maxDate = new Date().toISOString().split('T')[0];
+    if (current.toISOString().split('T')[0] >= maxDate) return; // Can't go beyond today
+    
+    const days = period === 'today' ? 1 : period === '7days' ? 7 : period === '30days' ? 30 : 90;
+    current.setDate(current.getDate() + days);
+    const max = new Date();
+    if (current > max) {
+      setEndDate(maxDate);
+    } else {
+      setEndDate(current.toISOString().split('T')[0]);
+    }
+  };
+  
+  const handleGoToToday = () => {
+    setEndDate(new Date().toISOString().split('T')[0]);
+  };
+  
+  const handlePeriodChange = (newPeriod: PeriodType) => {
+    setPeriod(newPeriod);
+    // Keep endDate as is, just change the period
+  };
 
   // Update date and time every second
   useEffect(() => {
@@ -364,84 +410,162 @@ const AdminDashboardPage: React.FC = () => {
           flexWrap: 'wrap',
         }}
       >
-        <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.neutral[300], mr: 1 }}>
-          Analytics Period:
-        </Typography>
-        <TextField
-          label="Start Date"
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          size="small"
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              backgroundColor: colors.neutral[800],
-              '& fieldset': {
+        <CalendarToday sx={{ color: colors.neutral[400], fontSize: 20 }} />
+        
+        {/* Period Selector Buttons */}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            variant={period === 'today' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => handlePeriodChange('today')}
+            sx={{
+              minWidth: 70,
+              ...(period === 'today' ? {
+                backgroundColor: colors.primary[600],
+                '&:hover': { backgroundColor: colors.primary[700] },
+              } : {
                 borderColor: colors.neutral[700],
-              },
-              '&:hover fieldset': {
-                borderColor: colors.neutral[600],
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: colors.primary[500],
-              },
-            },
-            '& .MuiInputBase-input': {
-              color: colors.neutral[100],
-            },
-            '& .MuiInputLabel-root': {
-              color: colors.neutral[400],
-            },
-          }}
-        />
-        <TextField
-          label="End Date"
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          size="small"
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              backgroundColor: colors.neutral[800],
-              '& fieldset': {
+                color: colors.neutral[300],
+                '&:hover': {
+                  borderColor: colors.neutral[600],
+                  backgroundColor: colors.neutral[800],
+                },
+              }),
+            }}
+          >
+            Today
+          </Button>
+          <Button
+            variant={period === '7days' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => handlePeriodChange('7days')}
+            sx={{
+              minWidth: 90,
+              ...(period === '7days' ? {
+                backgroundColor: colors.primary[600],
+                '&:hover': { backgroundColor: colors.primary[700] },
+              } : {
                 borderColor: colors.neutral[700],
+                color: colors.neutral[300],
+                '&:hover': {
+                  borderColor: colors.neutral[600],
+                  backgroundColor: colors.neutral[800],
+                },
+              }),
+            }}
+          >
+            Last 7 Days
+          </Button>
+          <Button
+            variant={period === '30days' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => handlePeriodChange('30days')}
+            sx={{
+              minWidth: 100,
+              ...(period === '30days' ? {
+                backgroundColor: colors.primary[600],
+                '&:hover': { backgroundColor: colors.primary[700] },
+              } : {
+                borderColor: colors.neutral[700],
+                color: colors.neutral[300],
+                '&:hover': {
+                  borderColor: colors.neutral[600],
+                  backgroundColor: colors.neutral[800],
+                },
+              }),
+            }}
+          >
+            Last 30 Days
+          </Button>
+          <Button
+            variant={period === '90days' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => handlePeriodChange('90days')}
+            sx={{
+              minWidth: 100,
+              ...(period === '90days' ? {
+                backgroundColor: colors.primary[600],
+                '&:hover': { backgroundColor: colors.primary[700] },
+              } : {
+                borderColor: colors.neutral[700],
+                color: colors.neutral[300],
+                '&:hover': {
+                  borderColor: colors.neutral[600],
+                  backgroundColor: colors.neutral[800],
+                },
+              }),
+            }}
+          >
+            Last 90 Days
+          </Button>
+        </Box>
+        
+        {/* Date Navigation */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 2 }}>
+          <IconButton
+            size="small"
+            onClick={handlePreviousPeriod}
+            sx={{
+              color: colors.neutral[300],
+              '&:hover': {
+                backgroundColor: colors.neutral[800],
+                color: colors.primary[400],
               },
-              '&:hover fieldset': {
+            }}
+          >
+            <ChevronLeft />
+          </IconButton>
+          <Typography
+            sx={{
+              minWidth: 140,
+              textAlign: 'center',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              color: colors.neutral[200],
+              px: 2,
+            }}
+          >
+            {new Date(endDate).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={handleNextPeriod}
+            disabled={endDate >= new Date().toISOString().split('T')[0]}
+            sx={{
+              color: colors.neutral[300],
+              '&:hover': {
+                backgroundColor: colors.neutral[800],
+                color: colors.primary[400],
+              },
+              '&:disabled': {
+                color: colors.neutral[600],
+              },
+            }}
+          >
+            <ChevronRight />
+          </IconButton>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Today />}
+            onClick={handleGoToToday}
+            sx={{
+              ml: 1,
+              borderColor: colors.neutral[700],
+              color: colors.neutral[300],
+              '&:hover': {
                 borderColor: colors.neutral[600],
+                backgroundColor: colors.neutral[800],
               },
-              '&.Mui-focused fieldset': {
-                borderColor: colors.primary[500],
-              },
-            },
-            '& .MuiInputBase-input': {
-              color: colors.neutral[100],
-            },
-            '& .MuiInputLabel-root': {
-              color: colors.neutral[400],
-            },
-          }}
-        />
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={() => {
-            setStartDate(getDefaultStartDate());
-            setEndDate(getDefaultEndDate());
-          }}
-          sx={{
-            ml: 'auto',
-            borderColor: colors.neutral[700],
-            color: colors.neutral[300],
-            '&:hover': {
-              borderColor: colors.neutral[600],
-              backgroundColor: colors.neutral[800],
-            },
-          }}
-        >
-          Reset
-        </Button>
+            }}
+          >
+            Today
+          </Button>
+        </Box>
         <Button
           variant="outlined"
           size="small"
