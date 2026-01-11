@@ -15,7 +15,6 @@ import {
 } from '@mui/material';
 import {
   People,
-  Business,
   TrendingUp,
   ArrowForward,
   MoreVert,
@@ -34,9 +33,6 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
 import PageContainer from '../../components/layout/PageContainer';
 import { StatCard } from '../../components/ui';
@@ -79,12 +75,10 @@ const AdminDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
-    totalDepartments: 0,
   });
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [clearingActivity, setClearingActivity] = useState(false);
   const [activityData, setActivityData] = useState<Array<{ name: string; tasks: number }>>([]);
-  const [departmentData, setDepartmentData] = useState<Array<{ name: string; value: number; color: string }>>([]);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [productionAnalytics, setProductionAnalytics] = useState<ProductionAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -157,11 +151,8 @@ const AdminDashboardPage: React.FC = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const [usersRes, deptsRes, activityRes] = await Promise.all([
+        const [usersRes, activityRes] = await Promise.all([
           axios.get(ApiEndpoints.USERS.LIST, {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => ({ data: [] })),
-          axios.get(ApiEndpoints.DEPARTMENTS.LIST, {
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => ({ data: [] })),
           axios.get(ApiEndpoints.ACTIVITY_LOG.LIST, {
@@ -171,7 +162,6 @@ const AdminDashboardPage: React.FC = () => {
         
         setStats({
           totalUsers: usersRes.data?.length || 0,
-          totalDepartments: deptsRes.data?.length || 0,
         });
         setRecentActivity(activityRes.data || []);
 
@@ -204,31 +194,6 @@ const AdminDashboardPage: React.FC = () => {
         }
 
         setActivityData(weeklyData);
-
-        // Generate department distribution from departments
-        const departments = deptsRes.data || [];
-        if (departments.length === 0) {
-          setDepartmentData([
-            { name: 'No Departments', value: 100, color: colors.neutral[600] },
-          ]);
-        } else {
-          const deptColors = [
-            colors.primary[500],
-            colors.success[500],
-            colors.warning[500],
-            colors.info[500],
-            colors.error[500],
-          ];
-          
-          const total = departments.length;
-          const deptArray = departments.map((dept: any, index: number) => ({
-            name: dept.name || 'Unknown',
-            value: Math.round((1 / total) * 100),
-            color: deptColors[index % deptColors.length],
-          }));
-
-          setDepartmentData(deptArray);
-        }
       } catch (error) {
         console.error('Error fetching stats:', error);
       } finally {
@@ -267,13 +232,6 @@ const AdminDashboardPage: React.FC = () => {
       icon: <People />,
       path: '/admin/users',
       color: colors.primary[500],
-    },
-    {
-      title: 'Departments',
-      description: 'Organize departments',
-      icon: <Business />,
-      path: '/admin/departments',
-      color: colors.success[500],
     },
     {
       title: 'Analytics',
@@ -561,18 +519,6 @@ const AdminDashboardPage: React.FC = () => {
           )}
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          {loading ? (
-            <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
-          ) : (
-            <StatCard
-              title="Departments"
-              value={stats.totalDepartments}
-              icon={<Business />}
-              color="success"
-            />
-          )}
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
           {loadingAnalytics ? (
             <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
           ) : (
@@ -673,65 +619,6 @@ const AdminDashboardPage: React.FC = () => {
                 </Box>
               )}
             </ResponsiveContainer>
-          </Box>
-        </Grid>
-
-        {/* Department Distribution */}
-        <Grid item xs={12} lg={4}>
-          <Box
-            sx={{
-              backgroundColor: colors.neutral[900],
-              border: `1px solid ${colors.neutral[800]}`,
-              borderRadius: 3,
-              p: 3,
-              height: '100%',
-            }}
-          >
-            <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 3 }}>
-              Department Distribution
-            </Typography>
-            <ResponsiveContainer width="100%" height={200}>
-              {departmentData.length > 0 ? (
-                <PieChart>
-                  <Pie
-                    data={departmentData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {departmentData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              ) : (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                  <Typography sx={{ color: colors.neutral[500], fontSize: '0.875rem' }}>
-                    No department data available
-                  </Typography>
-                </Box>
-              )}
-            </ResponsiveContainer>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', mt: 2 }}>
-              {departmentData.map((item) => (
-                <Box key={item.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box
-                    sx={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      backgroundColor: item.color,
-                    }}
-                  />
-                  <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[400] }}>
-                    {item.name} ({item.value}%)
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
           </Box>
         </Grid>
       </Grid>

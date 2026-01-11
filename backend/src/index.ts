@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { initDatabase, clearAllUsers } from './database/db';
 import authRoutes from './routes/auth';
-import departmentsRoutes from './routes/departments';
 import registrationCodesRoutes from './routes/registration-codes';
 import profilesRoutes from './routes/profiles';
 import groupsRoutes from './routes/groups';
@@ -166,7 +165,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 initDatabase().then(() => {
   // Routes
   app.use('/api/auth', authRoutes);
-  app.use('/api/departments', departmentsRoutes);
   app.use('/api/admin/registration-codes', registrationCodesRoutes);
   app.use('/api/profiles', profilesRoutes);
   app.use('/api/groups', groupsRoutes);
@@ -211,9 +209,9 @@ initDatabase().then(() => {
       endpoints: {
         health: '/api/health',
         auth: '/api/auth',
-        departments: '/api/departments',
         reports: '/api/reports',
         products: '/api/products',
+        analytics: '/api/analytics',
       }
     });
   });

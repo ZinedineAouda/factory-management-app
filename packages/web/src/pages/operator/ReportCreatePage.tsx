@@ -10,7 +10,6 @@ import {
   CircularProgress,
   Card,
   CardContent,
-  Chip,
   alpha,
   IconButton,
 } from '@mui/material';
@@ -37,32 +36,14 @@ const ReportCreatePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [departmentName, setDepartmentName] = useState<string>('');
 
   useEffect(() => {
     // Check permissions - only users with can_edit_reports can create reports
     if (!isAdmin && !canEdit('Reports')) {
       setError('You do not have permission to create reports. You need edit reports permission.');
     }
-    
-    fetchDepartments();
-    // Set user's department as default if available
-    if (user?.departmentId) {
-      setSelectedDepartment(user.departmentId);
-    }
   }, [user, canEdit, isAdmin]);
-
-  const fetchDepartments = async () => {
-    try {
-      const response = await axios.get(ApiEndpoints.DEPARTMENTS.LIST, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setDepartments(response.data || []);
-    } catch (err) {
-      console.error('Failed to fetch departments:', err);
-    }
-  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -116,8 +97,8 @@ const ReportCreatePage: React.FC = () => {
       return;
     }
 
-    if (!selectedDepartment) {
-      setError('Please select a department');
+    if (!departmentName.trim()) {
+      setError('Please enter a department name');
       return;
     }
 
@@ -128,7 +109,7 @@ const ReportCreatePage: React.FC = () => {
 
       const formData = new FormData();
       formData.append('message', message.trim());
-      formData.append('departmentId', selectedDepartment);
+      formData.append('departmentName', departmentName.trim());
       
       images.forEach((image) => {
         formData.append('images', image);
@@ -209,40 +190,38 @@ const ReportCreatePage: React.FC = () => {
 
             <form onSubmit={handleSubmit}>
               <Box sx={{ mb: 3 }}>
-                <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.neutral[300], mb: 1 }}>
-                  Department *
+                <TextField
+                  fullWidth
+                  label="Department Name"
+                  placeholder="Enter the department name (e.g., Production, Maintenance, Quality)"
+                  value={departmentName}
+                  onChange={(e) => setDepartmentName(e.target.value)}
+                  required
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: colors.neutral[950],
+                      color: colors.neutral[100],
+                      '& fieldset': {
+                        borderColor: colors.neutral[700],
+                      },
+                      '&:hover fieldset': {
+                        borderColor: colors.neutral[600],
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: colors.primary[500],
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: colors.neutral[400],
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: colors.primary[400],
+                    },
+                  }}
+                />
+                <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500], mt: 1 }}>
+                  Enter the name of the department where the issue occurred.
                 </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {departments.map((dept) => (
-                    <Chip
-                      key={dept.id}
-                      label={dept.name}
-                      onClick={() => setSelectedDepartment(dept.id)}
-                      color={selectedDepartment === dept.id ? 'primary' : 'default'}
-                      sx={{
-                        backgroundColor:
-                          selectedDepartment === dept.id
-                            ? alpha(colors.primary[500], 0.1)
-                            : colors.neutral[800],
-                        color:
-                          selectedDepartment === dept.id
-                            ? colors.primary[400]
-                            : colors.neutral[300],
-                        border: `1px solid ${
-                          selectedDepartment === dept.id
-                            ? colors.primary[500]
-                            : colors.neutral[700]
-                        }`,
-                        '&:hover': {
-                          backgroundColor:
-                            selectedDepartment === dept.id
-                              ? alpha(colors.primary[500], 0.15)
-                              : colors.neutral[800],
-                        },
-                      }}
-                    />
-                  ))}
-                </Box>
               </Box>
 
               <Box sx={{ mb: 3 }}>
@@ -375,7 +354,7 @@ const ReportCreatePage: React.FC = () => {
                   type="submit"
                   variant="contained"
                   startIcon={loading ? <CircularProgress size={16} /> : <Send />}
-                  disabled={loading || !message.trim() || !selectedDepartment}
+                  disabled={loading || !message.trim() || !departmentName.trim()}
                   sx={{
                     backgroundColor: colors.primary[500],
                     '&:hover': {

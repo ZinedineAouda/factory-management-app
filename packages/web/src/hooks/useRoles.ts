@@ -10,8 +10,6 @@ export interface Role {
   role_display_name: string;
   can_view_users: number;
   can_edit_users: number;
-  can_view_departments: number;
-  can_edit_departments: number;
   can_view_groups: number;
   can_edit_groups: number;
   can_view_products: number;
@@ -98,10 +96,10 @@ export const useRoles = (): UseRolesReturn => {
       setError(err.response?.data?.error || 'Failed to fetch roles');
       // Set default roles as fallback
       setRoles([
-        { id: '1', role: 'admin', role_display_name: 'Administrator', can_view_users: 1, can_edit_users: 1, can_view_departments: 1, can_edit_departments: 1, can_view_groups: 1, can_edit_groups: 1, can_view_products: 1, can_edit_products: 1, can_view_reports: 1, can_edit_reports: 1, can_view_analytics: 1, max_data_reach: 'all', created_at: '', updated_at: '' },
-        { id: '2', role: 'worker', role_display_name: 'Worker', can_view_users: 0, can_edit_users: 0, can_view_departments: 0, can_edit_departments: 0, can_view_groups: 0, can_edit_groups: 0, can_view_products: 1, can_edit_products: 0, can_view_reports: 0, can_edit_reports: 0, can_view_analytics: 0, max_data_reach: 'own', created_at: '', updated_at: '' },
-        { id: '3', role: 'operator', role_display_name: 'Operator', can_view_users: 0, can_edit_users: 0, can_view_departments: 0, can_edit_departments: 0, can_view_groups: 0, can_edit_groups: 0, can_view_products: 0, can_edit_products: 0, can_view_reports: 1, can_edit_reports: 1, can_view_analytics: 0, max_data_reach: 'own', created_at: '', updated_at: '' },
-        { id: '4', role: 'leader', role_display_name: 'Leader', can_view_users: 0, can_edit_users: 0, can_view_departments: 0, can_edit_departments: 0, can_view_groups: 0, can_edit_groups: 0, can_view_products: 0, can_edit_products: 0, can_view_reports: 1, can_edit_reports: 0, can_view_analytics: 0, max_data_reach: 'department', created_at: '', updated_at: '' },
+        { id: '1', role: 'admin', role_display_name: 'Administrator', can_view_users: 1, can_edit_users: 1, can_view_groups: 1, can_edit_groups: 1, can_view_products: 1, can_edit_products: 1, can_view_reports: 1, can_edit_reports: 1, can_view_analytics: 1, max_data_reach: 'all', created_at: '', updated_at: '' },
+        { id: '2', role: 'worker', role_display_name: 'Worker', can_view_users: 0, can_edit_users: 0, can_view_groups: 0, can_edit_groups: 0, can_view_products: 1, can_edit_products: 0, can_view_reports: 0, can_edit_reports: 0, can_view_analytics: 0, max_data_reach: 'own', created_at: '', updated_at: '' },
+        { id: '3', role: 'operator', role_display_name: 'Operator', can_view_users: 0, can_edit_users: 0, can_view_groups: 0, can_edit_groups: 0, can_view_products: 0, can_edit_products: 0, can_view_reports: 1, can_edit_reports: 1, can_view_analytics: 0, max_data_reach: 'own', created_at: '', updated_at: '' },
+        { id: '4', role: 'leader', role_display_name: 'Leader', can_view_users: 0, can_edit_users: 0, can_view_groups: 0, can_edit_groups: 0, can_view_products: 0, can_edit_products: 0, can_view_reports: 1, can_edit_reports: 0, can_view_analytics: 0, max_data_reach: 'group', created_at: '', updated_at: '' },
       ]);
     } finally {
       setLoading(false);

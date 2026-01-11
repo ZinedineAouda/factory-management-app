@@ -25,8 +25,6 @@ export interface User {
   email?: string;
   username?: string;
   role: UserRole;
-  departmentId?: string;
-  departmentName?: string;
   groupId?: string | null;
   groupName?: string | null;
   createdAt: string;

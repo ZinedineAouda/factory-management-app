@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -16,11 +15,9 @@ import {
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { colors } from '../../theme';
-import { RootState } from '../../store';
 
 const WorkerDashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useSelector((state: RootState) => state.auth);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   // Update date and time every second
@@ -49,7 +46,7 @@ const WorkerDashboardPage: React.FC = () => {
     });
   };
 
-  const isProduction = user?.departmentName?.toLowerCase() === 'production';
+  const isProduction = true; // All workers can access products
 
   const quickActions = isProduction
     ? [
@@ -81,7 +78,7 @@ const WorkerDashboardPage: React.FC = () => {
   return (
     <PageContainer
       title="Dashboard"
-      subtitle={`Welcome back! ${user?.departmentName ? `You're assigned to ${user.departmentName} department.` : 'Contact admin to get assigned to a department.'}`}
+      subtitle="Welcome back!"
     >
       {/* Date and Time Display */}
       <Box
@@ -264,26 +261,6 @@ const WorkerDashboardPage: React.FC = () => {
         </Grid>
       </Box>
 
-      {/* Department Status */}
-      {!user?.departmentName && (
-        <Box
-          sx={{
-            mt: 3,
-            p: 3,
-            backgroundColor: alpha(colors.warning[500], 0.08),
-            border: `1px solid ${alpha(colors.warning[500], 0.2)}`,
-            borderRadius: 2,
-          }}
-        >
-          <Typography sx={{ fontSize: '0.9375rem', fontWeight: 500, color: colors.warning[500], mb: 1 }}>
-            No Department Assigned
-          </Typography>
-          <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400] }}>
-            You haven't been assigned to a department yet. Please contact your administrator to get assigned
-            to either Production or Maintenance department.
-          </Typography>
-        </Box>
-      )}
     </PageContainer>
   );
 };

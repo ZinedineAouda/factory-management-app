@@ -25,8 +25,6 @@ export const runMigrations = async () => {
           role TEXT NOT NULL UNIQUE,
           can_view_users INTEGER DEFAULT 0,
           can_edit_users INTEGER DEFAULT 0,
-          can_view_departments INTEGER DEFAULT 0,
-          can_edit_departments INTEGER DEFAULT 0,
           can_view_groups INTEGER DEFAULT 0,
           can_edit_groups INTEGER DEFAULT 0,
           can_view_products INTEGER DEFAULT 0,
@@ -54,8 +52,6 @@ export const runMigrations = async () => {
             role,
             can_view_users: role === 'admin' ? 1 : 0,
             can_edit_users: role === 'admin' ? 1 : 0,
-            can_view_departments: role === 'admin' ? 1 : 0,
-            can_edit_departments: role === 'admin' ? 1 : 0,
             can_view_groups: role === 'admin' ? 1 : 0,
             can_edit_groups: role === 'admin' ? 1 : 0,
             can_view_products: ['admin', 'worker'].includes(role) ? 1 : 0,
@@ -70,15 +66,14 @@ export const runMigrations = async () => {
           
           await dbRun(
             `INSERT INTO role_permissions (
-              id, role, can_view_users, can_edit_users, can_view_departments, can_edit_departments,
+              id, role, can_view_users, can_edit_users,
               can_view_groups, can_edit_groups, can_view_products, can_edit_products,
               can_view_reports, can_edit_reports, can_view_tasks, can_edit_tasks,
               can_view_analytics, max_data_reach
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               permissions.id, permissions.role,
               permissions.can_view_users, permissions.can_edit_users,
-              permissions.can_view_departments, permissions.can_edit_departments,
               permissions.can_view_groups, permissions.can_edit_groups,
               permissions.can_view_products, permissions.can_edit_products,
               permissions.can_view_reports, permissions.can_edit_reports,

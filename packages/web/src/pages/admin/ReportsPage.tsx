@@ -28,7 +28,6 @@ import { usePermissions } from '../../hooks/usePermissions';
 
 interface Report {
   id: string;
-  department_id: string;
   operator_id: string;
   message: string;
   created_at: string;

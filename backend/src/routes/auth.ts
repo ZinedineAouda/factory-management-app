@@ -7,13 +7,12 @@ import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-// Helper function to get user with department and group info
-const getUserWithDepartment = async (userId: string) => {
+// Helper function to get user with group info
+const getUserWithGroup = async (userId: string) => {
   return await dbGet(
-    `SELECT u.id, u.email, u.username, u.role, u.department_id, u.group_id, u.status, u.created_at, u.is_active, 
-            d.name as department_name, g.name as group_name
+    `SELECT u.id, u.email, u.username, u.role, u.group_id, u.status, u.created_at, u.is_active, 
+            g.name as group_name
      FROM users u
-     LEFT JOIN departments d ON u.department_id = d.id
      LEFT JOIN groups g ON u.group_id = g.id
      WHERE u.id = ?`,
     [userId]
@@ -27,8 +26,6 @@ const formatUserResponse = (user: any) => ({
   username: user.username,
   role: user.role,
   status: user.status,
-  departmentId: user.department_id,
-  departmentName: user.department_name,
   groupId: user.group_id,
   groupName: user.group_name,
   createdAt: user.created_at,
@@ -175,9 +172,9 @@ router.post('/register', async (req, res) => {
     
     const userId = uuidv4();
     await dbRun(
-      `INSERT INTO users (id, username, password_hash, role, department_id, status) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [userId, username, passwordHash, code.role, null, initialStatus]
+      `INSERT INTO users (id, username, password_hash, role, status) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [userId, username, passwordHash, code.role, initialStatus]
     );
 
     // Mark code as used
@@ -187,7 +184,7 @@ router.post('/register', async (req, res) => {
     );
 
     // Don't generate token - user must be approved first
-    const user = await dbGet('SELECT id, username, role, department_id, status, created_at, is_active FROM users WHERE id = ?', [userId]);
+    const user = await dbGet('SELECT id, username, role, status, created_at, is_active FROM users WHERE id = ?', [userId]);
 
     // Notify all admins about pending user approval (only if status is pending)
     if (initialStatus === 'pending') {
@@ -223,7 +220,6 @@ router.post('/register', async (req, res) => {
         username: user.username,
         role: user.role,
         status: user.status,
-        departmentId: user.department_id,
       },
     });
   } catch (error: any) {
@@ -317,7 +313,6 @@ router.post('/login', async (req, res) => {
         email: user.email,
         role: user.role,
         status: user.status,
-        departmentId: user.department_id,
         groupId: userWithGroup?.group_id || null,
         groupName: userWithGroup?.group_name || null,
         profilePhotoUrl: user.profile_photo_url,
@@ -328,8 +323,6 @@ router.post('/login', async (req, res) => {
         permissions: rolePermissions ? {
           canViewUsers: rolePermissions.can_view_users === 1,
           canEditUsers: rolePermissions.can_edit_users === 1,
-          canViewDepartments: rolePermissions.can_view_departments === 1,
-          canEditDepartments: rolePermissions.can_edit_departments === 1,
           canViewGroups: rolePermissions.can_view_groups === 1,
           canEditGroups: rolePermissions.can_edit_groups === 1,
           canViewProducts: rolePermissions.can_view_products === 1,
@@ -406,11 +399,10 @@ router.get('/validate-code/:code', async (req, res) => {
 router.get('/me', authenticate, async (req: AuthRequest, res) => {
   try {
     const user = await dbGet(
-      `SELECT u.id, u.username, u.email, u.role, u.department_id, u.group_id, u.status, 
+      `SELECT u.id, u.username, u.email, u.role, u.group_id, u.status, 
               u.profile_photo_url, u.bio, u.created_at, u.updated_at, u.is_active, 
-              d.name as department_name, g.name as group_name
+              g.name as group_name
        FROM users u
-       LEFT JOIN departments d ON u.department_id = d.id
        LEFT JOIN groups g ON u.group_id = g.id
        WHERE u.id = ?`,
       [req.user!.id]
@@ -438,8 +430,6 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
       email: user.email,
       role: user.role,
       status: user.status,
-      departmentId: user.department_id,
-      departmentName: user.department_name,
       groupId: user.group_id,
       groupName: user.group_name,
       profilePhotoUrl: user.profile_photo_url,
@@ -568,7 +558,7 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
 
     // Step 4: Get user to approve
     const user = await dbGet(
-      'SELECT id, username, email, status, role, department_id, group_id FROM users WHERE id = ?',
+      'SELECT id, username, email, status, role, group_id FROM users WHERE id = ?',
       [userId]
     );
 
@@ -596,24 +586,7 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
       });
     }
 
-    // Step 6: Validate department if provided
-    let finalDeptId = null;
-    if (departmentId && String(departmentId).trim()) {
-      const deptId = String(departmentId).trim();
-      const dept = await dbGet('SELECT id, name FROM departments WHERE id = ?', [deptId]);
-      if (!dept) {
-        console.error(`[APPROVE] Invalid department ID: ${deptId}`);
-        return res.status(400).json({ 
-          error: 'Invalid department ID',
-          code: 'INVALID_DEPARTMENT',
-          departmentId: deptId
-        });
-      }
-      finalDeptId = deptId;
-      console.log(`[APPROVE] Valid department: ${dept.name}`);
-    }
-
-    // Step 7: Validate group if provided
+    // Step 6: Validate group if provided
     let finalGroupId = null;
     if (groupId && String(groupId).trim()) {
       const grpId = String(groupId).trim();
@@ -630,11 +603,10 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
       console.log(`[APPROVE] Valid group: ${group.name}`);
     }
 
-    // Step 8: Update user (SAFE - only updates specific fields, preserves all other data)
+    // Step 7: Update user (SAFE - only updates specific fields, preserves all other data)
     console.log(`[APPROVE] Updating user with:`, {
       status: 'active',
       role: normalizedRole,
-      departmentId: finalDeptId,
       groupId: finalGroupId
     });
 
@@ -642,11 +614,10 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
       `UPDATE users 
        SET status = ?, 
            role = ?, 
-           department_id = ?, 
            group_id = ?,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      ['active', normalizedRole, finalDeptId, finalGroupId, userId]
+      ['active', normalizedRole, finalGroupId, userId]
     );
 
     console.log(`[APPROVE] Update result:`, { 
@@ -676,7 +647,7 @@ router.post('/users/:id/approve', authenticate, requireRole(['admin']), async (r
     }
 
     // Step 10: Get updated user data
-    const updatedUser = await getUserWithDepartment(userId);
+    const updatedUser = await getUserWithGroup(userId);
     
     if (!updatedUser) {
       console.error(`[APPROVE] Failed to retrieve updated user data`);
@@ -850,54 +821,6 @@ router.get('/users/:id/statistics', authenticate, requireRole(['admin']), async 
   }
 });
 
-// Update user department (Admin only)
-router.put('/users/:id/department', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { departmentId } = req.body;
-
-    // Validate user exists
-    const existingUser = await dbGet('SELECT id, email FROM users WHERE id = ?', [id]);
-    if (!existingUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Normalize department ID: empty string or undefined becomes null
-    const normalizedDeptId = (departmentId === '' || departmentId === undefined || departmentId === null) ? null : departmentId;
-
-    // Validate department exists if provided
-    if (normalizedDeptId !== null && normalizedDeptId !== undefined) {
-      const department = await dbGet('SELECT id, name FROM departments WHERE id = ?', [normalizedDeptId]);
-      if (!department) {
-        return res.status(400).json({ error: 'Department not found' });
-      }
-    }
-
-    // Update user department - use transaction for atomicity
-    try {
-      await dbRun('BEGIN TRANSACTION');
-      await dbRun('UPDATE users SET department_id = ? WHERE id = ?', [normalizedDeptId, id]);
-      await dbRun('COMMIT');
-    } catch (txError: any) {
-      await dbRun('ROLLBACK').catch(() => {}); // Ignore rollback errors if transaction already failed
-      throw txError;
-    }
-
-    // Fetch updated user with department info
-    const updatedUser = await getUserWithDepartment(id);
-    if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found after update' });
-    }
-
-    res.json(formatUserResponse(updatedUser));
-  } catch (error: any) {
-    console.error('Update user department error:', error);
-    res.status(500).json({
-      error: 'Failed to update user department',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
 
 // Update user role (Admin only) - Validates against dynamic roles from database
 router.put('/users/:id/role', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
@@ -952,7 +875,7 @@ router.put('/users/:id/role', authenticate, requireRole(['admin']), async (req: 
     }
 
     // Fetch updated user
-    const updatedUser = await getUserWithDepartment(id);
+    const updatedUser = await getUserWithGroup(id);
     if (!updatedUser) {
       return res.status(404).json({ error: 'User not found after update' });
     }
@@ -995,7 +918,7 @@ router.put('/users/:id/username', authenticate, requireRole(['admin']), async (r
     await dbRun('UPDATE users SET username = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newUsername, id]);
 
     // Fetch updated user
-    const updatedUser = await getUserWithDepartment(id);
+    const updatedUser = await getUserWithGroup(id);
     if (!updatedUser) {
       return res.status(404).json({ error: 'User not found after update' });
     }

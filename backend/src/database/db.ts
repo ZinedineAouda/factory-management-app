@@ -317,19 +317,25 @@ export const initDatabase = async () => {
   await dbRun(`
     CREATE TABLE IF NOT EXISTS reports (
       id TEXT PRIMARY KEY,
-      department_id TEXT NOT NULL,
+      department_name TEXT NOT NULL,
       operator_id TEXT NOT NULL,
       message TEXT NOT NULL,
       task_id TEXT,
+      status TEXT DEFAULT 'pending',
+      priority TEXT DEFAULT 'medium',
       is_solved INTEGER DEFAULT 0,
       solved_at DATETIME,
       solved_by TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
       FOREIGN KEY (operator_id) REFERENCES users(id),
       FOREIGN KEY (solved_by) REFERENCES users(id)
     )
   `);
+  
+  // Migration: Add department_name column if it doesn't exist (for existing databases)
+  await dbRun(`ALTER TABLE reports ADD COLUMN department_name TEXT`).catch(() => {});
+  // Migration: Copy data from department_id to department_name if needed (for existing databases)
+  // This will be handled by a separate migration script if needed
 
   // Add is_solved, solved_at, solved_by columns if they don't exist
   await dbRun(`ALTER TABLE reports ADD COLUMN is_solved INTEGER DEFAULT 0`).catch(() => {});
@@ -445,16 +451,6 @@ export const initDatabase = async () => {
     )
   `);
 
-  // Create default Production department if it doesn't exist
-  const productionDept = await dbGet("SELECT id FROM departments WHERE LOWER(name) = 'production' LIMIT 1");
-  if (!productionDept) {
-    const deptId = uuidv4();
-    await dbRun(
-      "INSERT INTO departments (id, name, description) VALUES (?, 'Production', 'Production department')",
-      [deptId]
-    );
-    console.log('✅ Created default Production department');
-  }
 
   // Ensure admin account exists (using environment variables if available)
   await ensureAdminAccount();

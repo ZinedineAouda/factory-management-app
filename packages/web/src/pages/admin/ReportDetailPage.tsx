@@ -44,7 +44,6 @@ interface ReportComment {
 
 interface Report {
   id: string;
-  department_id: string;
   operator_id: string;
   operator_username: string;
   message: string;

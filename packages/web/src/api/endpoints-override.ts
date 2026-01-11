@@ -50,9 +50,6 @@ export const ApiEndpoints = {
     VALIDATE_CODE: (code: string) => `${API_BASE_URL}/auth/validate-code/${code}`,
     CHECK_USERNAME: (username: string) => `${API_BASE_URL}/auth/check-username/${encodeURIComponent(username)}`,
   },
-  DEPARTMENTS: {
-    LIST: `${API_BASE_URL}/departments`,
-  },
   REGISTRATION_CODES: {
     GENERATE: `${API_BASE_URL}/admin/registration-codes/generate`,
     LIST: `${API_BASE_URL}/admin/registration-codes`,
@@ -63,7 +60,6 @@ export const ApiEndpoints = {
     LIST: `${API_BASE_URL}/auth/users`,
     PENDING: `${API_BASE_URL}/auth/users/pending`,
     APPROVE: (id: string) => `${API_BASE_URL}/auth/users/${id}/approve`,
-    UPDATE_DEPARTMENT: (id: string) => `${API_BASE_URL}/auth/users/${id}/department`,
     UPDATE_GROUP: (id: string) => `${API_BASE_URL}/auth/users/${id}/group`,
     UPDATE_ROLE: (id: string) => `${API_BASE_URL}/auth/users/${id}/role`,
     UPDATE_USERNAME: (id: string) => `${API_BASE_URL}/auth/users/${id}/username`,
@@ -108,7 +104,6 @@ export const ApiEndpoints = {
     DETAIL: (id: string) => `${API_BASE_URL}/reports/${id}`,
     ADD_COMMENT: (id: string) => `${API_BASE_URL}/reports/${id}/comments`,
     MARK_SOLVED: (id: string) => `${API_BASE_URL}/reports/${id}/solve`,
-    BY_DEPARTMENT: (departmentId: string) => `${API_BASE_URL}/reports/department/${departmentId}`,
     LINK_TO_DROP: (reportId: string) => `${API_BASE_URL}/reports/${reportId}/link-to-drop`,
   },
   REPORTS_PAGE: {

@@ -12,7 +12,6 @@ import {
   Person,
   Email,
   Badge,
-  Business,
   Group,
   CalendarToday,
 } from '@mui/icons-material';
@@ -37,7 +36,6 @@ const ProfilePage: React.FC = () => {
     { label: 'Username', value: (user as any)?.username || '—', icon: <Person /> },
     { label: 'Email', value: (user as any)?.email || '—', icon: <Email /> },
     { label: 'Role', value: user?.role || '—', icon: <Badge /> },
-    { label: 'Department', value: user?.departmentName || 'Not assigned', icon: <Business /> },
     { label: 'Group', value: (user as any)?.group_name || 'Not assigned', icon: <Group /> },
     { label: 'Member Since', value: (user as any)?.createdAt ? new Date((user as any).createdAt).toLocaleDateString() : '—', icon: <CalendarToday /> },
   ];
@@ -78,23 +76,6 @@ const ProfilePage: React.FC = () => {
             <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[500], mt: 0.5, textTransform: 'capitalize' }}>
               {user?.role}
             </Typography>
-            {user?.departmentName && (
-              <Box
-                sx={{
-                  mt: 2,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: 2,
-                  backgroundColor: alpha(colors.primary[500], 0.1),
-                  display: 'inline-flex',
-                }}
-              >
-                <Typography sx={{ fontSize: '0.8125rem', color: colors.primary[400] }}>
-                  {user.departmentName}
-                </Typography>
-              </Box>
-            )}
-
             <Divider sx={{ my: 3, borderColor: colors.neutral[800] }} />
 
             <Typography sx={{ fontSize: '0.8125rem', color: colors.neutral[500], textAlign: 'center' }}>

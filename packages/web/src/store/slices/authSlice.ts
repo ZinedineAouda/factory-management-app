@@ -62,7 +62,7 @@ export const register = createAsyncThunk(
       // Backend may not return token for pending users
       if (response.data.token && response.data.user) {
         // User is approved, save auth
-        saveAuth(response.data.token, response.data.user);
+      saveAuth(response.data.token, response.data.user);
         return response.data;
       } else if (response.data.user) {
         // Registration successful but pending approval (no token)

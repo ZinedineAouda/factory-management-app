@@ -41,8 +41,6 @@ router.post('/', authenticate, requireRole(['admin']), async (req: AuthRequest, 
       role_display_name,
       can_view_users,
       can_edit_users,
-      can_view_departments,
-      can_edit_departments,
       can_view_groups,
       can_edit_groups,
       can_view_products,
@@ -73,28 +71,26 @@ router.post('/', authenticate, requireRole(['admin']), async (req: AuthRequest, 
     }
 
     // Validate max_data_reach
-    const validReaches = ['own', 'department', 'group', 'all'];
+    const validReaches = ['own', 'group', 'all'];
     const dataReach = max_data_reach || 'own';
     if (!validReaches.includes(dataReach)) {
-      return res.status(400).json({ error: 'Invalid max_data_reach. Must be: own, department, group, or all' });
+      return res.status(400).json({ error: 'Invalid max_data_reach. Must be: own, group, or all' });
     }
 
     const id = uuidv4();
     await dbRun(
       `INSERT INTO role_permissions (
-        id, role, role_display_name, can_view_users, can_edit_users, can_view_departments, can_edit_departments,
+        id, role, role_display_name, can_view_users, can_edit_users,
         can_view_groups, can_edit_groups, can_view_products, can_edit_products,
         can_view_reports, can_edit_reports, can_view_tasks, can_edit_tasks,
         can_view_analytics, max_data_reach
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         trimmedRole,
         role_display_name || trimmedRole,
         can_view_users ? 1 : 0,
         can_edit_users ? 1 : 0,
-        can_view_departments ? 1 : 0,
-        can_edit_departments ? 1 : 0,
         can_view_groups ? 1 : 0,
         can_edit_groups ? 1 : 0,
         can_view_products ? 1 : 0,
@@ -125,8 +121,6 @@ router.put('/:role', authenticate, requireRole(['admin']), async (req: AuthReque
       new_role_name,
       can_view_users,
       can_edit_users,
-      can_view_departments,
-      can_edit_departments,
       can_view_groups,
       can_edit_groups,
       can_view_products,
@@ -178,8 +172,6 @@ router.put('/:role', authenticate, requireRole(['admin']), async (req: AuthReque
         role_display_name = ?,
         can_view_users = ?,
         can_edit_users = ?,
-        can_view_departments = ?,
-        can_edit_departments = ?,
         can_view_groups = ?,
         can_edit_groups = ?,
         can_view_products = ?,
@@ -197,8 +189,6 @@ router.put('/:role', authenticate, requireRole(['admin']), async (req: AuthReque
         role_display_name !== undefined ? role_display_name : existing.role_display_name || existing.role,
         can_view_users !== undefined ? (can_view_users ? 1 : 0) : existing.can_view_users,
         can_edit_users !== undefined ? (can_edit_users ? 1 : 0) : existing.can_edit_users,
-        can_view_departments !== undefined ? (can_view_departments ? 1 : 0) : existing.can_view_departments,
-        can_edit_departments !== undefined ? (can_edit_departments ? 1 : 0) : existing.can_edit_departments,
         can_view_groups !== undefined ? (can_view_groups ? 1 : 0) : existing.can_view_groups,
         can_edit_groups !== undefined ? (can_edit_groups ? 1 : 0) : existing.can_edit_groups,
         can_view_products !== undefined ? (can_view_products ? 1 : 0) : existing.can_view_products,

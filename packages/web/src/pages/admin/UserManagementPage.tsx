@@ -45,11 +45,6 @@ import { User } from '@factory-app/shared';
 import { useRoles, getRoleDisplayName, getRoleColor } from '../../hooks/useRoles';
 
 
-interface Department {
-  id: string;
-  name: string;
-}
-
 interface Group {
   id: string;
   name: string;
@@ -67,7 +62,6 @@ const UserManagementPage: React.FC = () => {
   
   const [users, setUsers] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingPending, setLoadingPending] = useState(false);
@@ -80,7 +74,6 @@ const UserManagementPage: React.FC = () => {
   const [editCredentialsDialogOpen, setEditCredentialsDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<string>('worker');
   const [editingUsername, setEditingUsername] = useState('');
@@ -93,7 +86,6 @@ const UserManagementPage: React.FC = () => {
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [filterRole, setFilterRole] = useState<string>('all');
-  const [filterDepartment, setFilterDepartment] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const { token, user: currentUser } = useSelector((state: RootState) => state.auth);
@@ -134,7 +126,6 @@ const UserManagementPage: React.FC = () => {
   useEffect(() => {
     fetchUsers();
     fetchPendingUsers();
-    fetchDepartments();
     fetchGroups();
   }, []);
 
@@ -178,7 +169,6 @@ const UserManagementPage: React.FC = () => {
     // Ensure we have a valid role string
     const initialRole = (user.role && String(user.role).trim()) || defaultRole;
     setSelectedRole(initialRole);
-    setSelectedDepartmentId('');
     setSelectedGroupId('');
     setApproveDialogOpen(true);
     setError(null);
@@ -187,7 +177,6 @@ const UserManagementPage: React.FC = () => {
   const handleCloseApproveDialog = useCallback(() => {
     setApproveDialogOpen(false);
     setSelectedUser(null);
-    setSelectedDepartmentId('');
     setSelectedGroupId('');
     const defaultRole = roles.find(r => r && r.role && r.role !== 'admin')?.role || 'worker';
     setSelectedRole(defaultRole);
@@ -276,7 +265,6 @@ const UserManagementPage: React.FC = () => {
 
       const payload = {
         role: roleString,
-        departmentId: selectedDepartmentId?.trim() || null,
         groupId: selectedGroupId?.trim() || null,
       };
 
@@ -379,7 +367,7 @@ const UserManagementPage: React.FC = () => {
     } finally {
       setApproving(false);
     }
-  }, [selectedUser, selectedRole, selectedDepartmentId, selectedGroupId, token, handleCloseApproveDialog, fetchUsers, fetchPendingUsers, roles, tabs.length]);
+  }, [selectedUser, selectedRole, selectedGroupId, token, handleCloseApproveDialog, fetchUsers, fetchPendingUsers, roles, tabs.length]);
 
   // Keyboard shortcuts for approval dialog (must be after handleApproveUser and handleCloseApproveDialog declarations)
   useEffect(() => {
@@ -408,17 +396,6 @@ const UserManagementPage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [approveDialogOpen, approving, selectedRole, handleApproveUser, handleCloseApproveDialog]);
-
-  const fetchDepartments = async () => {
-    try {
-      const response = await axios.get(ApiEndpoints.DEPARTMENTS.LIST, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setDepartments(response.data);
-    } catch (error: any) {
-      console.error('Failed to fetch departments');
-    }
-  };
 
   const fetchGroups = async () => {
     try {
@@ -460,7 +437,6 @@ const UserManagementPage: React.FC = () => {
 
   const handleOpenAssignDialog = (user: User) => {
     setSelectedUser(user);
-    setSelectedDepartmentId(user.departmentId || '');
     setSelectedGroupId(user.groupId || '');
     setSelectedRole(user.role as string);
     setAssignDialogOpen(true);
@@ -470,7 +446,6 @@ const UserManagementPage: React.FC = () => {
   const handleCloseAssignDialog = () => {
     setAssignDialogOpen(false);
     setSelectedUser(null);
-    setSelectedDepartmentId('');
     setSelectedGroupId('');
     const defaultRole = roles.find(r => r.role !== 'admin')?.role || 'worker';
     setSelectedRole(defaultRole);
@@ -482,7 +457,6 @@ const UserManagementPage: React.FC = () => {
 
     try {
       setError(null);
-      const departmentIdToSend = selectedDepartmentId === '' ? null : selectedDepartmentId;
       const groupIdToSend = selectedGroupId === '' ? null : selectedGroupId;
 
       // Update role if changed
@@ -493,13 +467,6 @@ const UserManagementPage: React.FC = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
       }
-
-      // Update department
-      await axios.put(
-        ApiEndpoints.USERS.UPDATE_DEPARTMENT(selectedUser.id),
-        { departmentId: departmentIdToSend },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
 
       // Update group
       await axios.put(
@@ -662,20 +629,13 @@ const UserManagementPage: React.FC = () => {
       const searchLower = String(searchQuery || '').toLowerCase();
       const matchesSearch =
         ((user as any).username && String((user as any).username).toLowerCase().includes(searchLower)) ||
-        (user.email && String(user.email).toLowerCase().includes(searchLower)) ||
-        (user.departmentName && String(user.departmentName).toLowerCase().includes(searchLower));
+        (user.email && String(user.email).toLowerCase().includes(searchLower));
       
       if (!matchesSearch) return false;
     }
     
     // Role filter - only apply if filter has been explicitly set
     if (activeFilters.size > 0 && filterRole !== 'all' && user.role !== filterRole) return false;
-    
-    // Department filter - only apply if filter has been explicitly set
-    if (activeFilters.size > 0 && filterDepartment !== 'all') {
-      if (filterDepartment === 'none' && user.departmentId) return false;
-      if (filterDepartment !== 'none' && user.departmentId !== filterDepartment) return false;
-    }
     
     // Status filter - only apply if filter has been explicitly set (disabled on pending tab)
     if (activeFilters.size > 0 && tabValue !== 0 && filterStatus !== 'all') {
@@ -700,7 +660,6 @@ const UserManagementPage: React.FC = () => {
   useEffect(() => {
     // Clear all filters when switching tabs
     setFilterRole('all');
-    setFilterDepartment('all');
     setFilterStatus('all');
     setActiveFilters(new Set());
     setSearchQuery('');
@@ -709,9 +668,6 @@ const UserManagementPage: React.FC = () => {
   const handleApplyFilters = () => {
     const filters: string[] = [];
     if (filterRole !== 'all') filters.push(`Role: ${filterRole}`);
-    if (filterDepartment !== 'all') {
-      filters.push(`Dept: ${filterDepartment === 'none' ? 'None' : departments.find(d => d.id === filterDepartment)?.name || filterDepartment}`);
-    }
     if (filterStatus !== 'all') filters.push(`Status: ${filterStatus}`);
     setActiveFilters(new Set(filters));
     handleCloseFilterDialog();
@@ -719,7 +675,6 @@ const UserManagementPage: React.FC = () => {
 
   const handleClearFilters = () => {
     setFilterRole('all');
-    setFilterDepartment('all');
     setFilterStatus('all');
     setActiveFilters(new Set());
     setSearchQuery(''); // Also clear search when clearing filters
@@ -800,25 +755,6 @@ const UserManagementPage: React.FC = () => {
           />
         );
       },
-    },
-    {
-      id: 'department',
-      label: 'Department',
-      render: (row: User) =>
-        row.departmentName ? (
-          <Chip
-            label={row.departmentName}
-            size="small"
-            sx={{
-              backgroundColor: alpha(colors.success[500], 0.12),
-              color: colors.success[500],
-              fontWeight: 500,
-              fontSize: '0.75rem',
-            }}
-          />
-        ) : (
-          <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[600] }}>—</Typography>
-        ),
     },
     {
       id: 'group',
@@ -1079,7 +1015,7 @@ const UserManagementPage: React.FC = () => {
               </Grid>
             ) : (
               <Alert severity="info" sx={{ maxWidth: 400 }}>
-                {user.departmentId ? 'No statistics available yet' : 'Assign a department to see statistics'}
+                No statistics available yet
               </Alert>
             )}
           </Box>
@@ -1221,7 +1157,6 @@ const UserManagementPage: React.FC = () => {
                         <Typography>{getRoleDisplayName(role)}</Typography>
                         <Typography variant="caption" sx={{ color: colors.neutral[500] }}>
                           {role.max_data_reach === 'all' ? 'Full system access' :
-                           role.max_data_reach === 'department' ? 'Department access' :
                            role.max_data_reach === 'group' ? 'Group access' : 'Basic access'}
                         </Typography>
                       </Box>
@@ -1232,48 +1167,6 @@ const UserManagementPage: React.FC = () => {
             {rolesLoading && (
               <Typography variant="caption" sx={{ color: colors.neutral[500], mt: 0.5 }}>
                 Loading roles...
-              </Typography>
-            )}
-          </FormControl>
-
-          {/* Department Selection */}
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel sx={{ color: colors.neutral[400] }}>
-              Department
-            </InputLabel>
-            <Select
-              value={selectedDepartmentId}
-              onChange={(e) => {
-                setSelectedDepartmentId(e.target.value);
-                setError(null);
-              }}
-              label="Department"
-              disabled={approving || departments.length === 0}
-              sx={{
-                color: colors.neutral[100],
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: colors.neutral[700],
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: colors.neutral[600],
-                },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: colors.primary[500],
-                },
-              }}
-            >
-              <MenuItem value="">
-                <em>None (Optional)</em>
-              </MenuItem>
-              {departments.map((dept) => (
-                <MenuItem key={dept.id} value={dept.id}>
-                  {dept.name}
-                </MenuItem>
-              ))}
-            </Select>
-            {departments.length === 0 && (
-              <Typography variant="caption" sx={{ color: colors.warning[500], mt: 0.5, display: 'block' }}>
-                No departments available. Create departments first.
               </Typography>
             )}
           </FormControl>
@@ -1404,23 +1297,6 @@ const UserManagementPage: React.FC = () => {
                 ))}
             </Select>
           </FormControl>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Department</InputLabel>
-            <Select
-              value={selectedDepartmentId}
-              onChange={(e) => setSelectedDepartmentId(e.target.value)}
-              label="Department"
-            >
-              <MenuItem value="">
-                <em>None (Remove Department)</em>
-              </MenuItem>
-              {departments.map((dept) => (
-                <MenuItem key={dept.id} value={dept.id}>
-                  {dept.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
           <FormControl fullWidth>
             <InputLabel>Group</InputLabel>
             <Select
@@ -1542,34 +1418,6 @@ const UserManagementPage: React.FC = () => {
                     </Box>
                   </MenuItem>
                 ))}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel sx={{ color: colors.neutral[400] }}>Department</InputLabel>
-            <Select
-              value={filterDepartment}
-              onChange={(e) => setFilterDepartment(e.target.value)}
-              label="Department"
-              sx={{
-                color: colors.neutral[100],
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: colors.neutral[700],
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: colors.neutral[600],
-                },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: colors.primary[500],
-                },
-              }}
-            >
-              <MenuItem value="all">All Departments</MenuItem>
-              <MenuItem value="none">No Department</MenuItem>
-              {departments.map((dept) => (
-                <MenuItem key={dept.id} value={dept.id}>
-                  {dept.name}
-                </MenuItem>
-              ))}
             </Select>
           </FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}>

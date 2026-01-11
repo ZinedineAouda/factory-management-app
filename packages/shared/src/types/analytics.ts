@@ -13,15 +13,6 @@ export interface EfficiencyDataPoint {
   efficiency: number;
 }
 
-export interface DepartmentPerformance {
-  departmentId: string;
-  departmentName: string;
-  totalTasks: number;
-  completedTasks: number;
-  completionRate: number;
-  averageCompletionTime: number; // in hours
-}
-
 export interface PriorityDistribution {
   high: number;
   medium: number;

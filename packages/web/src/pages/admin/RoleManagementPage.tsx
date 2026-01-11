@@ -31,7 +31,6 @@ import {
   Security,
   Edit,
   People,
-  Business,
   Group,
   Inventory,
   Description,
@@ -51,8 +50,6 @@ interface RolePermissions {
   role_display_name?: string;
   can_view_users: number;
   can_edit_users: number;
-  can_view_departments: number;
-  can_edit_departments: number;
   can_view_groups: number;
   can_edit_groups: number;
   can_view_products: number;
@@ -162,8 +159,6 @@ const RoleManagementPage: React.FC = () => {
           new_role_name: editData?.role !== role ? editData?.role : undefined,
           can_view_users: rolePermissions.can_view_users === 1,
           can_edit_users: rolePermissions.can_edit_users === 1,
-          can_view_departments: rolePermissions.can_view_departments === 1,
-          can_edit_departments: rolePermissions.can_edit_departments === 1,
           can_view_groups: rolePermissions.can_view_groups === 1,
           can_edit_groups: rolePermissions.can_edit_groups === 1,
           can_view_products: rolePermissions.can_view_products === 1,
@@ -562,14 +557,6 @@ const RoleManagementPage: React.FC = () => {
                   role={rolePerms.role}
                   viewField="can_view_users"
                   editField="can_edit_users"
-                />
-
-                <PermissionSection
-                  title="Departments"
-                  icon={<Business sx={{ fontSize: 18, color: colors.neutral[400] }} />}
-                  role={rolePerms.role}
-                  viewField="can_view_departments"
-                  editField="can_edit_departments"
                 />
 
                 <PermissionSection

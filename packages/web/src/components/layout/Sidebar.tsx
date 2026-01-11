@@ -18,7 +18,6 @@ import {
 import {
   Dashboard,
   People,
-  Business,
   Analytics,
   Inventory,
   Description,
@@ -87,14 +86,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, open = true, onC
       }
     }
 
-    // Departments - show if can view departments
-    if (isAdmin || (permissions && canView('Departments'))) {
-      if (isAdmin) {
-        items.push({ label: 'Departments', icon: <Business />, path: '/admin/departments' });
-      } else {
-        items.push({ label: 'Departments', icon: <Business />, path: '/admin/departments' });
-      }
-    }
 
     // Groups & Shifts - show if can view groups
     if (isAdmin || (permissions && canView('Groups'))) {

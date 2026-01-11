@@ -48,12 +48,12 @@ router.post('/', authenticate, requirePermission('can_edit_reports'), upload.arr
     console.log('Files:', req.files);
     console.log('User:', (req as AuthRequest).user);
     
-    const { departmentId, message } = req.body;
+    const { departmentName, message } = req.body;
     const operatorId = (req as AuthRequest).user!.id;
 
-    if (!departmentId) {
-      console.error('Missing departmentId');
-      return res.status(400).json({ error: 'Department ID is required' });
+    if (!departmentName || !departmentName.trim()) {
+      console.error('Missing departmentName');
+      return res.status(400).json({ error: 'Department name is required' });
     }
 
     if (!message || !message.trim()) {
@@ -61,18 +61,11 @@ router.post('/', authenticate, requirePermission('can_edit_reports'), upload.arr
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Verify department exists
-    const department = await dbGet('SELECT id, name FROM departments WHERE id = ?', [departmentId]);
-    if (!department) {
-      return res.status(404).json({ error: 'Department not found' });
-    }
-
-    // Create report
+    // Create report with department_name as text
     const reportId = uuidv4();
-    // Insert with task_id as NULL (since we're using department_id now)
     await dbRun(
-      'INSERT INTO reports (id, department_id, operator_id, message, task_id) VALUES (?, ?, ?, ?, ?)',
-      [reportId, departmentId, operatorId, message, null]
+      'INSERT INTO reports (id, department_name, operator_id, message, task_id) VALUES (?, ?, ?, ?, ?)',
+      [reportId, departmentName.trim(), operatorId, message, null]
     );
 
     // Handle image uploads
@@ -87,31 +80,20 @@ router.post('/', authenticate, requirePermission('can_edit_reports'), upload.arr
       }
     }
 
-    // Create notification for admin and department leader
+    // Create notification for admins
     const adminUsers = await dbAll('SELECT id FROM users WHERE role = ?', ['admin']);
     for (const admin of adminUsers) {
       const notificationId = uuidv4();
       await dbRun(
         'INSERT INTO notifications (id, user_id, type, title, message, related_id) VALUES (?, ?, ?, ?, ?, ?)',
-        [notificationId, admin.id, 'report', 'New Report Created', `A new report has been created for ${department.name} department`, reportId]
-      );
-    }
-
-    // Notify department leader if exists
-    const leader = await dbGet('SELECT id FROM users WHERE role = ? AND department_id = ?', ['leader', departmentId]);
-    if (leader) {
-      const notificationId = uuidv4();
-      await dbRun(
-        'INSERT INTO notifications (id, user_id, type, title, message, related_id) VALUES (?, ?, ?, ?, ?, ?)',
-        [notificationId, leader.id, 'report', 'New Report for Your Department', `A new report has been created for ${department.name} department`, reportId]
+        [notificationId, admin.id, 'report', 'New Report Created', `A new report has been created for ${departmentName.trim()} department`, reportId]
       );
     }
 
     const report = await dbGet(
-      `SELECT r.*, u.username as operator_username, d.name as department_name
+      `SELECT r.*, u.username as operator_username
        FROM reports r 
        JOIN users u ON r.operator_id = u.id 
-       JOIN departments d ON r.department_id = d.id
        WHERE r.id = ?`,
       [reportId]
     );
@@ -134,50 +116,33 @@ router.post('/', authenticate, requirePermission('can_edit_reports'), upload.arr
   }
 });
 
-// Get reports for a department (Users with can_view_reports permission)
-router.get('/department/:departmentId', authenticate, requirePermission('can_view_reports'), async (req: AuthRequest, res) => {
+// Get reports by department name (Users with can_view_reports permission)
+router.get('/department/:departmentName', authenticate, requirePermission('can_view_reports'), async (req: AuthRequest, res) => {
   try {
-    const { departmentId } = req.params;
+    const { departmentName } = req.params;
     const userId = req.user!.id;
     const userRole = req.user!.role;
 
-    // Admin can see all reports, others see reports based on their department/data reach
+    // Admin can see all reports, operators see their own
     let reports;
     if (userRole === 'admin') {
       reports = await dbAll(
-        `SELECT r.*, u.username as operator_username, d.name as department_name
+        `SELECT r.*, u.username as operator_username
          FROM reports r 
          JOIN users u ON r.operator_id = u.id 
-         JOIN departments d ON r.department_id = d.id
-         WHERE r.department_id = ? 
+         WHERE r.department_name = ? 
          ORDER BY r.created_at DESC`,
-        [departmentId]
+        [departmentName]
       );
-    } else if (userRole === 'leader') {
-      // Verify leader belongs to this department
-      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
-      if (userData && userData.department_id === departmentId) {
-        reports = await dbAll(
-          `SELECT r.*, u.username as operator_username, d.name as department_name
-           FROM reports r 
-           JOIN users u ON r.operator_id = u.id 
-           JOIN departments d ON r.department_id = d.id
-           WHERE r.department_id = ? 
-           ORDER BY r.created_at DESC`,
-          [departmentId]
-        );
-      } else {
-        return res.status(403).json({ error: 'You can only view reports for your own department' });
-      }
     } else {
+      // Operators see their own reports only
       reports = await dbAll(
-        `SELECT r.*, u.username as operator_username, d.name as department_name
+        `SELECT r.*, u.username as operator_username
          FROM reports r 
          JOIN users u ON r.operator_id = u.id 
-         JOIN departments d ON r.department_id = d.id
-         WHERE r.department_id = ? AND r.operator_id = ? 
+         WHERE r.department_name = ? AND r.operator_id = ? 
          ORDER BY r.created_at DESC`,
-        [departmentId, userId]
+        [departmentName, userId]
       );
     }
 
@@ -204,63 +169,25 @@ router.get('/', authenticate, requirePermission('can_view_reports'), async (req:
     if (userRole === 'admin') {
       // Admin sees all reports
       reports = await dbAll(
-        `SELECT r.*, u.username as operator_username, d.name as department_name,
+        `SELECT r.*, u.username as operator_username,
                 solver.username as solved_by_username
          FROM reports r 
          JOIN users u ON r.operator_id = u.id 
-         JOIN departments d ON r.department_id = d.id
          LEFT JOIN users solver ON r.solved_by = solver.id
          ORDER BY r.created_at DESC`
       );
-    } else if (userRole === 'leader') {
-      // Leaders see reports for their department
-      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
-      if (userData && userData.department_id) {
-        reports = await dbAll(
-          `SELECT r.*, u.username as operator_username, d.name as department_name,
-                  solver.username as solved_by_username
-           FROM reports r 
-           JOIN users u ON r.operator_id = u.id 
-           JOIN departments d ON r.department_id = d.id
-           LEFT JOIN users solver ON r.solved_by = solver.id
-           WHERE r.department_id = ?
-           ORDER BY r.created_at DESC`,
-          [userData.department_id]
-        );
-      } else {
-        reports = [];
-      }
     } else {
-      // Operators see their own reports, workers see reports in their department
-      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
-      if (userRole === 'operator') {
-        reports = await dbAll(
-          `SELECT r.*, u.username as operator_username, d.name as department_name,
-                  solver.username as solved_by_username
-           FROM reports r 
-           JOIN users u ON r.operator_id = u.id 
-           JOIN departments d ON r.department_id = d.id
-           LEFT JOIN users solver ON r.solved_by = solver.id
-           WHERE r.operator_id = ?
-           ORDER BY r.created_at DESC`,
-          [userId]
-        );
-      } else if (userData && userData.department_id) {
-        // Workers can view reports in their department
-        reports = await dbAll(
-          `SELECT r.*, u.username as operator_username, d.name as department_name,
-                  solver.username as solved_by_username
-           FROM reports r 
-           JOIN users u ON r.operator_id = u.id 
-           JOIN departments d ON r.department_id = d.id
-           LEFT JOIN users solver ON r.solved_by = solver.id
-           WHERE r.department_id = ?
-           ORDER BY r.created_at DESC`,
-          [userData.department_id]
-        );
-      } else {
-        reports = [];
-      }
+      // Operators and workers see their own reports only
+      reports = await dbAll(
+        `SELECT r.*, u.username as operator_username,
+                solver.username as solved_by_username
+         FROM reports r 
+         JOIN users u ON r.operator_id = u.id 
+         LEFT JOIN users solver ON r.solved_by = solver.id
+         WHERE r.operator_id = ?
+         ORDER BY r.created_at DESC`,
+        [userId]
+      );
     }
 
     // Get attachments and solved info for each report
@@ -291,10 +218,9 @@ router.get('/:id', authenticate, requirePermission('can_view_reports'), async (r
 
     // Get report
     const report = await dbGet(
-      `SELECT r.*, u.username as operator_username, d.name as department_name
+      `SELECT r.*, u.username as operator_username
        FROM reports r 
        JOIN users u ON r.operator_id = u.id 
-       JOIN departments d ON r.department_id = d.id
        WHERE r.id = ?`,
       [id]
     );
@@ -306,21 +232,14 @@ router.get('/:id', authenticate, requirePermission('can_view_reports'), async (r
     // Check permissions
     if (userRole === 'admin') {
       // Admin can see all
-    } else if (userRole === 'leader') {
-      // Leader can see reports for their department
-      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
-      if (!userData || userData.department_id !== report.department_id) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
     } else if (userRole === 'operator') {
       // Operator can see their own reports
       if (report.operator_id !== userId) {
         return res.status(403).json({ error: 'Access denied' });
       }
     } else {
-      // Workers can view reports (read-only)
-      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
-      if (!userData || userData.department_id !== report.department_id) {
+      // Workers and others can see their own reports only
+      if (report.operator_id !== userId) {
         return res.status(403).json({ error: 'Access denied' });
       }
     }
@@ -374,19 +293,9 @@ router.post('/:id/comments', authenticate, requirePermission('can_view_reports')
     // Check permissions (same as viewing)
     if (userRole === 'admin') {
       // Admin can comment
-    } else if (userRole === 'leader') {
-      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
-      if (!userData || userData.department_id !== report.department_id) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
-    } else if (userRole === 'operator') {
-      if (report.operator_id !== userId) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
     } else {
-      // Workers can comment on reports in their department
-      const userData = await dbGet('SELECT department_id FROM users WHERE id = ?', [userId]);
-      if (!userData || userData.department_id !== report.department_id) {
+      // Operators and workers can comment on their own reports
+      if (report.operator_id !== userId) {
         return res.status(403).json({ error: 'Access denied' });
       }
     }
@@ -440,11 +349,10 @@ router.put('/:id/solve', authenticate, requirePermission('can_edit_reports'), as
 
     // Get updated report with solved_by username
     const updatedReport = await dbGet(
-      `SELECT r.*, u.username as operator_username, d.name as department_name, 
+      `SELECT r.*, u.username as operator_username, 
               solver.username as solved_by_username
        FROM reports r 
        JOIN users u ON r.operator_id = u.id 
-       JOIN departments d ON r.department_id = d.id
        LEFT JOIN users solver ON r.solved_by = solver.id
        WHERE r.id = ?`,
       [id]

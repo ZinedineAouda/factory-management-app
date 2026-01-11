@@ -29,13 +29,7 @@ export const ApiEndpoints = {
   ANALYTICS: {
     OVERVIEW: `${API_BASE_URL}/admin/analytics/overview`,
     EFFICIENCY: `${API_BASE_URL}/admin/analytics/efficiency`,
-    DEPARTMENTS: `${API_BASE_URL}/admin/analytics/departments`,
     PRIORITY_DISTRIBUTION: `${API_BASE_URL}/admin/analytics/priority-distribution`,
-  },
-
-  // Departments
-  DEPARTMENTS: {
-    LIST: `${API_BASE_URL}/departments`,
   },
 
   // Registration Codes

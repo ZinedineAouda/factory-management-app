@@ -13,7 +13,6 @@ import ReportCreatePage from '../pages/operator/ReportCreatePage';
 import LeaderDashboardPage from '../pages/leader/LeaderDashboardPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import CodeGenerationPage from '../pages/admin/CodeGenerationPage';
-import DepartmentManagementPage from '../pages/admin/DepartmentManagementPage';
 import UserManagementPage from '../pages/admin/UserManagementPage';
 import AnalyticsPage from '../pages/admin/AnalyticsPage';
 import ReportsPage from '../pages/admin/ReportsPage';
@@ -151,14 +150,6 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <AdminDashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/departments"
-        element={
-          <ProtectedRoute requiredPermission={{ view: 'Departments' }}>
-            <DepartmentManagementPage />
           </ProtectedRoute>
         }
       />
