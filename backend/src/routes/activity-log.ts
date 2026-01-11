@@ -24,17 +24,6 @@ router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, r
   }
 });
 
-// Clear activity log (Admin only)
-router.delete('/', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
-  try {
-    await dbRun('DELETE FROM activity_log');
-    res.json({ message: 'Activity log cleared successfully' });
-  } catch (error: any) {
-    console.error('Clear activity log error:', error);
-    res.status(500).json({ error: 'Failed to clear activity log' });
-  }
-});
-
 // Helper function to log activity
 export const logActivity = async (
   userId: string | null,

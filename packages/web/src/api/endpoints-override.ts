@@ -137,6 +137,5 @@ export const ApiEndpoints = {
   },
   ACTIVITY_LOG: {
     LIST: `${API_BASE_URL}/activity-log`,
-    CLEAR: `${API_BASE_URL}/activity-log`,
   },
 } as const;

@@ -19,7 +19,6 @@ import {
   ArrowForward,
   MoreVert,
   Inventory,
-  Delete,
   AccessTime,
   CalendarToday,
   LocalShipping,
@@ -79,7 +78,6 @@ const AdminDashboardPage: React.FC = () => {
     totalUsers: 0,
   });
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
-  const [clearingActivity, setClearingActivity] = useState(false);
   const [groupsData, setGroupsData] = useState<any[]>([]);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [productionAnalytics, setProductionAnalytics] = useState<ProductionAnalytics | null>(null);
@@ -218,23 +216,6 @@ const AdminDashboardPage: React.FC = () => {
     }
   }, [token, startDate, endDate]);
 
-  const handleClearActivity = async () => {
-    if (!window.confirm('Are you sure you want to clear all recent activity? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      setClearingActivity(true);
-      await axios.delete(ApiEndpoints.ACTIVITY_LOG.CLEAR, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setRecentActivity([]);
-    } catch (error) {
-      console.error('Error clearing activity:', error);
-    } finally {
-      setClearingActivity(false);
-    }
-  };
 
   const quickActions: QuickAction[] = [
     {
@@ -785,19 +766,6 @@ const AdminDashboardPage: React.FC = () => {
               <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100] }}>
                 Recent Activity
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                {recentActivity.length > 0 && (
-                  <Button
-                    size="small"
-                    startIcon={clearingActivity ? <CircularProgress size={14} /> : <Delete sx={{ fontSize: 14 }} />}
-                    onClick={handleClearActivity}
-                    disabled={clearingActivity}
-                    sx={{ fontSize: '0.8125rem', color: colors.error[500] }}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </Box>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {recentActivity.length === 0 ? (

@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { initDatabase, clearAllUsers } from './database/db';
+import { initDatabase } from './database/db';
 import authRoutes from './routes/auth';
 import registrationCodesRoutes from './routes/registration-codes';
 import profilesRoutes from './routes/profiles';
@@ -186,20 +186,6 @@ initDatabase().then(() => {
     res.json({ status: 'ok', message: 'Factory Management API is running' });
   });
 
-  // Clear all users endpoint (Admin only - for development/testing)
-  // NOTE: Admin accounts are ALWAYS preserved
-  app.post('/api/admin/clear-all-users', async (req, res) => {
-    try {
-      await clearAllUsers();
-      res.json({ 
-        message: 'All non-admin users have been cleared from the database. Admin accounts have been preserved.',
-        note: 'Admin accounts are never deleted for safety.'
-      });
-    } catch (error: any) {
-      console.error('Error clearing users:', error);
-      res.status(500).json({ error: 'Failed to clear users', details: error.message });
-    }
-  });
 
   // Root route - helpful message
   app.get('/', (req, res) => {

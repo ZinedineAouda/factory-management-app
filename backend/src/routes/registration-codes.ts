@@ -167,26 +167,6 @@ router.get('/', authenticate, requireRole(['admin']), async (req, res) => {
   }
 });
 
-// Delete all registration codes (Admin only)
-router.delete('/all', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
-  try {
-    // Get count before deletion
-    const countResult = await dbGet('SELECT COUNT(*) as count FROM registration_codes');
-    const count = countResult?.count || 0;
-
-    // Delete all codes
-    await dbRun('DELETE FROM registration_codes');
-
-    console.log(`✅ Deleted ${count} registration code(s)`);
-    res.json({ 
-      message: `Successfully deleted ${count} registration code(s)`,
-      deletedCount: count
-    });
-  } catch (error: any) {
-    console.error('Delete all codes error:', error);
-    res.status(500).json({ error: 'Failed to delete all registration codes' });
-  }
-});
 
 // Delete registration code (Admin only)
 router.delete('/:id', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {

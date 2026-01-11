@@ -39,6 +39,8 @@ import {
   LocalShipping,
   Close,
   Analytics,
+  ShoppingCart,
+  CheckCircle,
 } from '@mui/icons-material';
 import PageContainer from '../../components/layout/PageContainer';
 import { EmptyState } from '../../components/ui';
@@ -104,6 +106,18 @@ const ProductsPage: React.FC = () => {
   const [selectedProductForAnalytics, setSelectedProductForAnalytics] = useState<Product | null>(null);
   const [productAnalytics, setProductAnalytics] = useState<any>(null);
   const [loadingProductAnalytics, setLoadingProductAnalytics] = useState(false);
+  
+  // Delivery entry dialog
+  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
+  const [selectedProductForDelivery, setSelectedProductForDelivery] = useState<Product | null>(null);
+  const [deliveryFormData, setDeliveryFormData] = useState({
+    amount: '',
+    deliveryDate: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+  const [submittingDelivery, setSubmittingDelivery] = useState(false);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [deliverySuccess, setDeliverySuccess] = useState<string | null>(null);
 
   useEffect(() => {
     // Safety check: Redirect message if view-only user somehow accesses this page
@@ -201,6 +215,71 @@ const ProductsPage: React.FC = () => {
     setProductAnalyticsDialogOpen(false);
     setSelectedProductForAnalytics(null);
     setProductAnalytics(null);
+  };
+
+  const handleOpenDeliveryDialog = (product: Product) => {
+    setSelectedProductForDelivery(product);
+    setDeliveryFormData({
+      amount: '',
+      deliveryDate: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
+    setDeliveryDialogOpen(true);
+    setDeliveryError(null);
+    setDeliverySuccess(null);
+  };
+
+  const handleCloseDeliveryDialog = () => {
+    setDeliveryDialogOpen(false);
+    setSelectedProductForDelivery(null);
+    setDeliveryFormData({
+      amount: '',
+      deliveryDate: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
+    setDeliveryError(null);
+    setDeliverySuccess(null);
+  };
+
+  const handleSubmitDelivery = async () => {
+    if (!selectedProductForDelivery) return;
+
+    const amountNum = parseFloat(deliveryFormData.amount);
+    if (!deliveryFormData.amount || isNaN(amountNum) || amountNum <= 0) {
+      setDeliveryError('Please enter a valid positive amount');
+      return;
+    }
+
+    try {
+      setSubmittingDelivery(true);
+      setDeliveryError(null);
+      setDeliverySuccess(null);
+
+      await axios.post(
+        ApiEndpoints.PRODUCT_DELIVERIES.CREATE,
+        {
+          productId: selectedProductForDelivery.id,
+          amount: amountNum,
+          deliveryDate: deliveryFormData.deliveryDate || new Date().toISOString().split('T')[0],
+          notes: deliveryFormData.notes.trim() || null,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setDeliverySuccess('Delivery amount entered successfully!');
+      setTimeout(() => {
+        handleCloseDeliveryDialog();
+        fetchDeliveries(); // Refresh deliveries list if open
+      }, 1500);
+    } catch (err: any) {
+      console.error('Delivery submission error:', err);
+      const errorMessage = err.response?.data?.error || 'Failed to enter delivery amount';
+      setDeliveryError(errorMessage);
+    } finally {
+      setSubmittingDelivery(false);
+    }
   };
 
   const handleOpenProductDialog = () => {
@@ -512,6 +591,16 @@ const ProductsPage: React.FC = () => {
                     />
                   </CardContent>
                   <CardActions sx={{ p: 1.5, pt: 0, gap: 0.5, flexWrap: 'wrap' }}>
+                    {/* Delivery button - Enter delivery amount */}
+                    <Tooltip title="Enter Delivery">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenDeliveryDialog(product)}
+                        sx={{ color: colors.success[500] }}
+                      >
+                        <ShoppingCart sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
                     {/* Analytics button - View product analytics */}
                     <Tooltip title="View Analytics">
                       <IconButton
@@ -922,6 +1011,84 @@ const ProductsPage: React.FC = () => {
               Refresh
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Delivery Entry Dialog */}
+      <Dialog open={deliveryDialogOpen} onClose={handleCloseDeliveryDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Enter Delivery Amount - {selectedProductForDelivery?.name}
+        </DialogTitle>
+        <DialogContent>
+          {deliveryError && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setDeliveryError(null)}>
+              {deliveryError}
+            </Alert>
+          )}
+          {deliverySuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {deliverySuccess}
+            </Alert>
+          )}
+          <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[400], mb: 2 }}>
+            Enter the amount of products delivered
+          </Typography>
+          <TextField
+            fullWidth
+            label="Delivery Amount"
+            type="number"
+            value={deliveryFormData.amount}
+            onChange={(e) => setDeliveryFormData({ ...deliveryFormData, amount: e.target.value })}
+            required
+            disabled={submittingDelivery}
+            inputProps={{ min: 0, step: 1 }}
+            margin="normal"
+            helperText="Enter the number of products delivered"
+            autoFocus
+          />
+          <TextField
+            fullWidth
+            label="Delivery Date"
+            type="date"
+            value={deliveryFormData.deliveryDate}
+            onChange={(e) => setDeliveryFormData({ ...deliveryFormData, deliveryDate: e.target.value })}
+            required
+            disabled={submittingDelivery}
+            margin="normal"
+            InputLabelProps={{
+              shrink: true,
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Notes (Optional)"
+            multiline
+            rows={3}
+            value={deliveryFormData.notes}
+            onChange={(e) => setDeliveryFormData({ ...deliveryFormData, notes: e.target.value })}
+            disabled={submittingDelivery}
+            margin="normal"
+            placeholder="Add any additional notes about this delivery..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeliveryDialog} variant="outlined" disabled={submittingDelivery}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmitDelivery}
+            variant="contained"
+            disabled={submittingDelivery}
+            startIcon={submittingDelivery ? <CircularProgress size={16} /> : <CheckCircle />}
+            sx={{
+              backgroundColor: colors.success[500],
+              '&:hover': {
+                backgroundColor: colors.success[600],
+              },
+            }}
+          >
+            {submittingDelivery ? 'Submitting...' : 'Enter Amount'}
+          </Button>
         </DialogActions>
       </Dialog>
     </PageContainer>
