@@ -185,7 +185,7 @@ const AnalyticsPage: React.FC = () => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabValue, startDate, endDate, selectedProductId]);
+  }, [tabValue, startDate, endDate, selectedProductId, period]);
 
   const fetchProducts = async () => {
     try {
@@ -305,7 +305,16 @@ const AnalyticsPage: React.FC = () => {
   const fetchGroupsAnalytics = async () => {
     try {
       setLoadingGroups(true);
-      const response = await axios.get(ApiEndpoints.ANALYTICS.GROUPS, {
+      const params = new URLSearchParams();
+      if (startDate) {
+        params.append('startDate', startDate);
+      }
+      if (endDate) {
+        params.append('endDate', endDate);
+      }
+      const queryString = params.toString();
+      const url = queryString ? `${ApiEndpoints.ANALYTICS.GROUPS}?${queryString}` : ApiEndpoints.ANALYTICS.GROUPS;
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setGroupsData(response.data.groups || []);

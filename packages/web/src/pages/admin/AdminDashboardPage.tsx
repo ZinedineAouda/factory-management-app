@@ -170,11 +170,21 @@ const AdminDashboardPage: React.FC = () => {
       const queryString = params.toString();
       const url = queryString ? `${ApiEndpoints.ANALYTICS.PRODUCTION}?${queryString}` : ApiEndpoints.ANALYTICS.PRODUCTION;
       
+      const groupsParams = new URLSearchParams();
+      if (startDate) {
+        groupsParams.append('startDate', startDate);
+      }
+      if (endDate) {
+        groupsParams.append('endDate', endDate);
+      }
+      const groupsQueryString = groupsParams.toString();
+      const groupsUrl = groupsQueryString ? `${ApiEndpoints.ANALYTICS.GROUPS}?${groupsQueryString}` : ApiEndpoints.ANALYTICS.GROUPS;
+      
       const [productionResponse, groupsResponse] = await Promise.all([
         axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         }).catch(() => ({ data: {} })),
-        axios.get(ApiEndpoints.ANALYTICS.GROUPS, {
+        axios.get(groupsUrl, {
           headers: { Authorization: `Bearer ${token}` },
         }).catch(() => ({ data: { groups: [] } })),
       ]);
@@ -240,7 +250,8 @@ const AdminDashboardPage: React.FC = () => {
       fetchStats();
       fetchAnalytics(); // Fetch analytics in parallel
     }
-  }, [token, startDate, endDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, startDate, endDate, period]);
 
 
   const quickActions: QuickAction[] = [
