@@ -1,12 +1,12 @@
 import express from 'express';
-import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
+import { authenticate, requireRole, requirePermission, AuthRequest } from '../middleware/auth';
 import { calculateAnalytics, getCachedAnalytics, getWorkerAnalytics } from '../services/analyticsService';
 import { dbAll } from '../database/db';
 
 const router = express.Router();
 
-// Get production analytics (Admin only) - Now based on product deliveries
-router.get('/production', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+// Get production analytics (Users with can_view_analytics permission) - Now based on product deliveries
+router.get('/production', authenticate, requirePermission('can_view_analytics'), async (req: AuthRequest, res) => {
   try {
     // Get date range from query parameters (optional)
     const startDate = req.query.startDate as string | undefined;
@@ -103,8 +103,8 @@ router.get('/production', authenticate, requireRole(['admin']), async (req: Auth
   }
 });
 
-// Get maintenance analytics (Admin only)
-router.get('/maintenance', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+// Get maintenance analytics (Users with can_view_analytics permission)
+router.get('/maintenance', authenticate, requirePermission('can_view_analytics'), async (req: AuthRequest, res) => {
   try {
     // Get date range from query parameters (optional)
     const startDate = req.query.startDate as string | undefined;
@@ -180,8 +180,8 @@ router.get('/personal', authenticate, requireRole(['worker']), async (req: AuthR
   }
 });
 
-// Get group performance comparison (Admin only)
-router.get('/groups', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+// Get group performance comparison (Users with can_view_analytics permission)
+router.get('/groups', authenticate, requirePermission('can_view_analytics'), async (req: AuthRequest, res) => {
   try {
     // Get all groups with their delivery performance
     const groupPerformance = await dbAll(`
@@ -245,8 +245,8 @@ router.get('/groups', authenticate, requireRole(['admin']), async (req: AuthRequ
   }
 });
 
-// Get product-specific analytics (Admin only)
-router.get('/product/:productId', authenticate, requireRole(['admin']), async (req: AuthRequest, res) => {
+// Get product-specific analytics (Users with can_view_analytics permission)
+router.get('/product/:productId', authenticate, requirePermission('can_view_analytics'), async (req: AuthRequest, res) => {
   try {
     const { productId } = req.params;
     const startDate = req.query.startDate as string | undefined;

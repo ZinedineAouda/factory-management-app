@@ -13,6 +13,16 @@ import {
   TextField,
   Paper,
   Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -64,6 +74,27 @@ interface ReportsAnalytics {
   averageResponseTime: number;
 }
 
+interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ProductAnalytics {
+  product: Product;
+  totalDeliveries: number;
+  totalAmount: number;
+  averageAmount: number;
+  bestGroup: { groupName: string; totalAmount: number } | null;
+  groupsPerformance: Array<{ groupName: string; totalAmount: number; totalDeliveries: number; avgAmount: number }>;
+  topWorkers: Array<{ username: string; totalAmount: number; totalDeliveries: number }>;
+  deliveriesByDate: Array<{ date: string; amount: number }>;
+  deliveries: Array<any>;
+}
+
 const AnalyticsPage: React.FC = () => {
   const { token } = useSelector((state: RootState) => state.auth);
   const [tabValue, setTabValue] = useState(0);
@@ -74,6 +105,10 @@ const AnalyticsPage: React.FC = () => {
   const [reportsData, setReportsData] = useState<ReportsAnalytics | null>(null);
   const [groupsData, setGroupsData] = useState<GroupPerformance[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [productAnalytics, setProductAnalytics] = useState<ProductAnalytics | null>(null);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   
   // Date range state - default to last 30 days
   const getDefaultStartDate = () => {
@@ -90,12 +125,72 @@ const AnalyticsPage: React.FC = () => {
   const [endDate, setEndDate] = useState<string>(getDefaultEndDate());
 
   useEffect(() => {
-    fetchAnalytics();
-    if (tabValue === 0) {
-      fetchGroupsAnalytics();
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    if (selectedProductId) {
+      fetchProductAnalytics();
+    } else {
+      fetchAnalytics();
+      if (tabValue === 0) {
+        fetchGroupsAnalytics();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabValue, startDate, endDate]);
+  }, [tabValue, startDate, endDate, selectedProductId]);
+
+  const fetchProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const response = await axios.get(ApiEndpoints.PRODUCTS.LIST, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setProducts(response.data || []);
+    } catch (err: any) {
+      console.error('Fetch products error:', err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const fetchProductAnalytics = async () => {
+    if (!selectedProductId) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const params = new URLSearchParams();
+      if (startDate) {
+        params.append('startDate', startDate);
+      }
+      if (endDate) {
+        params.append('endDate', endDate);
+      }
+      const queryString = params.toString();
+      const url = queryString 
+        ? `${ApiEndpoints.ANALYTICS.PRODUCT(selectedProductId)}?${queryString}`
+        : ApiEndpoints.ANALYTICS.PRODUCT(selectedProductId);
+      
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = response.data;
+      // Normalize: backend returns avgAmount, but interface expects averageAmount
+      setProductAnalytics({
+        ...data,
+        averageAmount: data.avgAmount || data.averageAmount || 0,
+        groupsPerformance: data.groupsByPerformance || data.groupsPerformance || [],
+      });
+    } catch (err: any) {
+      console.error('Product analytics fetch error:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to fetch product analytics');
+      setProductAnalytics(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchAnalytics = async () => {
     try {
@@ -198,6 +293,11 @@ const AnalyticsPage: React.FC = () => {
     setEndDate(getDefaultEndDate());
   };
 
+  const handleProductChange = (productId: string) => {
+    setSelectedProductId(productId);
+    setProductAnalytics(null);
+  };
+
   return (
     <PageContainer
       title="Analytics"
@@ -228,6 +328,47 @@ const AnalyticsPage: React.FC = () => {
           <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.neutral[300], mr: 1 }}>
             Date Range:
           </Typography>
+          <FormControl 
+            sx={{ 
+              minWidth: 200,
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: colors.neutral[800],
+                '& fieldset': {
+                  borderColor: colors.neutral[700],
+                },
+                '&:hover fieldset': {
+                  borderColor: colors.neutral[600],
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: colors.primary[500],
+                },
+              },
+              '& .MuiInputBase-input': {
+                color: colors.neutral[100],
+              },
+              '& .MuiInputLabel-root': {
+                color: colors.neutral[400],
+              },
+            }}
+          >
+            <InputLabel id="product-select-label">Product (Optional)</InputLabel>
+            <Select
+              labelId="product-select-label"
+              value={selectedProductId}
+              onChange={(e) => handleProductChange(e.target.value)}
+              label="Product (Optional)"
+              disabled={loadingProducts}
+            >
+              <MenuItem value="">
+                <em>All Products</em>
+              </MenuItem>
+              {products.map((product) => (
+                <MenuItem key={product.id} value={product.id}>
+                  {product.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <TextField
             label="Start Date"
             type="date"
@@ -326,6 +467,128 @@ const AnalyticsPage: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
           <CircularProgress />
         </Box>
+      ) : tabValue === 0 && selectedProductId && productAnalytics ? (
+        <>
+          {/* Product-specific analytics */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6} lg={3}>
+              <StatCard
+                title="Total Deliveries"
+                value={productAnalytics.totalDeliveries}
+                icon={<LocalShipping />}
+                color="primary"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} lg={3}>
+              <StatCard
+                title="Total Amount"
+                value={productAnalytics.totalAmount.toLocaleString()}
+                icon={<CheckCircle />}
+                color="success"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} lg={3}>
+              <StatCard
+                title="Average Amount"
+                value={productAnalytics.averageAmount.toFixed(1)}
+                icon={<TrendingUp />}
+                color="info"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} lg={3}>
+              <StatCard
+                title="Best Group"
+                value={productAnalytics.bestGroup?.groupName || 'N/A'}
+                icon={<Inventory />}
+                color="warning"
+              />
+            </Grid>
+          </Grid>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Showing analytics for: <strong>{productAnalytics.product.name}</strong>
+          </Alert>
+
+          {/* Groups Performance */}
+          {productAnalytics.groupsPerformance && productAnalytics.groupsPerformance.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 2 }}>
+                Performance by Group
+              </Typography>
+              <Grid container spacing={2}>
+                {productAnalytics.groupsPerformance.slice(0, 3).map((group: any, index: number) => (
+                  <Grid item xs={12} sm={4} key={index}>
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        backgroundColor: colors.neutral[900],
+                        border: `1px solid ${index === 0 ? colors.warning[500] : colors.neutral[800]}`,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.neutral[100] }}>
+                          {group.groupName}
+                        </Typography>
+                        {index === 0 && (
+                          <Chip label="Best" size="small" sx={{ backgroundColor: colors.warning[500], color: colors.neutral[950], fontSize: '0.7rem', height: 20 }} />
+                        )}
+                      </Box>
+                      <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
+                        {group.totalDeliveries} deliveries
+                      </Typography>
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.success[500] }}>
+                        {group.totalAmount?.toLocaleString() || '0'} total
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          )}
+
+          {/* Delivery History Table */}
+          <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 2 }}>
+            Delivery History
+          </Typography>
+          {productAnalytics.deliveries && productAnalytics.deliveries.length > 0 ? (
+            <TableContainer component={Paper} sx={{ backgroundColor: colors.neutral[900], border: `1px solid ${colors.neutral[800]}` }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Worker</TableCell>
+                    <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Group</TableCell>
+                    <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }} align="right">Amount</TableCell>
+                    <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Date</TableCell>
+                    <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Time</TableCell>
+                    <TableCell sx={{ color: colors.neutral[300], fontWeight: 600 }}>Notes</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {productAnalytics.deliveries.map((delivery: any) => (
+                    <TableRow key={delivery.id} hover>
+                      <TableCell sx={{ color: colors.neutral[100] }}>{delivery.worker_username || 'Unknown'}</TableCell>
+                      <TableCell sx={{ color: colors.neutral[300] }}>{delivery.group_name || 'No Group'}</TableCell>
+                      <TableCell align="right" sx={{ color: colors.success[500], fontWeight: 600 }}>
+                        {delivery.amount?.toLocaleString() || '0'}
+                      </TableCell>
+                      <TableCell sx={{ color: colors.neutral[300] }}>
+                        {delivery.delivery_date ? new Date(delivery.delivery_date).toLocaleDateString() : 'N/A'}
+                      </TableCell>
+                      <TableCell sx={{ color: colors.primary[400], fontWeight: 500, fontFamily: 'monospace' }}>
+                        {delivery.delivery_hour || 'N/A'}
+                      </TableCell>
+                      <TableCell sx={{ color: colors.neutral[400], maxWidth: 150 }}>
+                        {delivery.notes || '-'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Alert severity="info">No delivery history available for this product.</Alert>
+          )}
+        </>
       ) : tabValue === 0 && productionData ? (
         <>
           {/* Stats Grid */}

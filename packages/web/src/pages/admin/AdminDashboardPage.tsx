@@ -43,15 +43,18 @@ import axios from 'axios';
 import { ApiEndpoints } from '../../api/endpoints-override';
 
 
-interface Activity {
+interface Delivery {
   id: string;
-  type: string;
-  description: string;
-  timestamp: string;
-  action?: string;
-  username?: string;
-  created_at?: string;
-  user?: string;
+  product_id: string;
+  product_name?: string;
+  worker_id: string;
+  worker_username?: string;
+  group_name?: string;
+  amount: number;
+  delivery_date: string;
+  delivery_hour?: string;
+  notes?: string | null;
+  created_at: string;
 }
 
 interface QuickAction {
@@ -77,7 +80,7 @@ const AdminDashboardPage: React.FC = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
   });
-  const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
+  const [recentDeliveries, setRecentDeliveries] = useState<Delivery[]>([]);
   const [groupsData, setGroupsData] = useState<any[]>([]);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [productionAnalytics, setProductionAnalytics] = useState<ProductionAnalytics | null>(null);
@@ -160,11 +163,11 @@ const AdminDashboardPage: React.FC = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const [usersRes, activityRes] = await Promise.all([
+        const [usersRes, deliveriesRes] = await Promise.all([
           axios.get(ApiEndpoints.USERS.LIST, {
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => ({ data: [] })),
-          axios.get(ApiEndpoints.ACTIVITY_LOG.LIST, {
+          axios.get(ApiEndpoints.PRODUCT_DELIVERIES.LIST, {
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => ({ data: [] })),
         ]);
@@ -172,37 +175,14 @@ const AdminDashboardPage: React.FC = () => {
         setStats({
           totalUsers: usersRes.data?.length || 0,
         });
-        setRecentActivity(activityRes.data || []);
-
-        // Generate weekly activity data from activity log (last 7 days)
-        const now = new Date();
-        const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const weeklyData = [];
-        const activities = activityRes.data || [];
-        
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date(now);
-          date.setDate(now.getDate() - i);
-          date.setHours(0, 0, 0, 0);
-          
-          const dayOfWeek = date.getDay();
-          const dayName = weekDays[dayOfWeek];
-
-          const dayActivities = activities.filter((activity: Activity) => {
-            if (!activity.timestamp && !activity.created_at) return false;
-            const activityDate = new Date(activity.timestamp || activity.created_at || '');
-            activityDate.setHours(0, 0, 0, 0);
-            return activityDate.getTime() === date.getTime();
-          });
-
-          weeklyData.push({
-            name: dayName,
-            tasks: dayActivities.length,
-            completed: 0,
-          });
-        }
-
-        // Activity data no longer used - chart now shows delivery data
+        // Sort deliveries by created_at descending and take the most recent
+        const deliveries = deliveriesRes.data || [];
+        deliveries.sort((a: Delivery, b: Delivery) => {
+          const dateA = new Date(a.created_at).getTime();
+          const dateB = new Date(b.created_at).getTime();
+          return dateB - dateA;
+        });
+        setRecentDeliveries(deliveries);
       } catch (error) {
         console.error('Error fetching stats:', error);
       } finally {
@@ -240,20 +220,6 @@ const AdminDashboardPage: React.FC = () => {
       color: colors.info[500],
     },
   ];
-
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-  };
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -764,51 +730,68 @@ const AdminDashboardPage: React.FC = () => {
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100] }}>
-                Recent Activity
+                Recent Deliveries
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {recentActivity.length === 0 ? (
+              {recentDeliveries.length === 0 ? (
                 <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[500], textAlign: 'center', py: 4 }}>
-                  No recent activity
+                  No deliveries yet
                 </Typography>
               ) : (
-                recentActivity.slice(0, 5).map((activity: Activity) => (
-                  <Box
-                    key={activity.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      p: 2,
-                      borderRadius: 2,
-                      backgroundColor: colors.neutral[950],
-                      border: `1px solid ${colors.neutral[800]}`,
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box
-                        sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          backgroundColor: colors.primary[500],
-                        }}
-                      />
-                      <Box>
-                        <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[100] }}>
-                          {activity.action}
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
-                          {activity.username || 'System'}
-                        </Typography>
+                recentDeliveries.slice(0, 5).map((delivery: Delivery) => {
+                  const formatTimeAgo = (dateString: string) => {
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const diffMs = now.getTime() - date.getTime();
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+
+                    if (diffMins < 1) return 'Just now';
+                    if (diffMins < 60) return `${diffMins}m ago`;
+                    if (diffHours < 24) return `${diffHours}h ago`;
+                    if (diffDays < 7) return `${diffDays}d ago`;
+                    return date.toLocaleDateString();
+                  };
+
+                  return (
+                    <Box
+                      key={delivery.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        p: 2,
+                        borderRadius: 2,
+                        backgroundColor: colors.neutral[950],
+                        border: `1px solid ${colors.neutral[800]}`,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box
+                          sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            backgroundColor: colors.success[500],
+                          }}
+                        />
+                        <Box>
+                          <Typography sx={{ fontSize: '0.875rem', color: colors.neutral[100] }}>
+                            {delivery.product_name || 'Unknown Product'} - {delivery.amount.toLocaleString()} units
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[500] }}>
+                            {delivery.worker_username || 'Unknown'} {delivery.group_name ? `(${delivery.group_name})` : ''}
+                          </Typography>
+                        </Box>
                       </Box>
+                      <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[600] }}>
+                        {formatTimeAgo(delivery.created_at)}
+                      </Typography>
                     </Box>
-                    <Typography sx={{ fontSize: '0.75rem', color: colors.neutral[600] }}>
-                      {activity.created_at ? formatTimeAgo(activity.created_at) : 'Just now'}
-                    </Typography>
-                  </Box>
-                ))
+                  );
+                })
               )}
             </Box>
           </Box>
