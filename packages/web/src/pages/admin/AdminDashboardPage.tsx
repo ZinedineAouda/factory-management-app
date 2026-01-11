@@ -28,6 +28,8 @@ import {
 import {
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -78,7 +80,7 @@ const AdminDashboardPage: React.FC = () => {
   });
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [clearingActivity, setClearingActivity] = useState(false);
-  const [activityData, setActivityData] = useState<Array<{ name: string; tasks: number }>>([]);
+  const [groupsData, setGroupsData] = useState<any[]>([]);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [productionAnalytics, setProductionAnalytics] = useState<ProductionAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -121,11 +123,16 @@ const AdminDashboardPage: React.FC = () => {
       const queryString = params.toString();
       const url = queryString ? `${ApiEndpoints.ANALYTICS.PRODUCTION}?${queryString}` : ApiEndpoints.ANALYTICS.PRODUCTION;
       
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [productionResponse, groupsResponse] = await Promise.all([
+        axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => ({ data: {} })),
+        axios.get(ApiEndpoints.ANALYTICS.GROUPS, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => ({ data: { groups: [] } })),
+      ]);
       
-      const data = response.data || {};
+      const data = productionResponse.data || {};
       setProductionAnalytics({
         totalDeliveries: data.totalDeliveries || 0,
         totalAmount: data.totalAmount || 0,
@@ -133,6 +140,9 @@ const AdminDashboardPage: React.FC = () => {
         deliveriesByWorker: data.deliveriesByWorker || [],
         deliveriesByDate: data.deliveriesByDate || [],
       });
+
+      // Set groups data for charts
+      setGroupsData(groupsResponse.data?.groups || []);
     } catch (err: any) {
       console.error('Analytics fetch error:', err);
       setProductionAnalytics({
@@ -142,6 +152,7 @@ const AdminDashboardPage: React.FC = () => {
         deliveriesByWorker: [],
         deliveriesByDate: [],
       });
+      setGroupsData([]);
     } finally {
       setLoadingAnalytics(false);
     }
@@ -193,7 +204,7 @@ const AdminDashboardPage: React.FC = () => {
           });
         }
 
-        setActivityData(weeklyData);
+        // Activity data no longer used - chart now shows delivery data
       } catch (error) {
         console.error('Error fetching stats:', error);
       } finally {
@@ -559,10 +570,10 @@ const AdminDashboardPage: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Box>
                 <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100] }}>
-                  Weekly Activity
+                  Weekly Deliveries Trend
                 </Typography>
                 <Typography sx={{ fontSize: '0.8125rem', color: colors.neutral[500], mt: 0.5 }}>
-                  Activity this week
+                  Delivery amounts (last 7 days)
                 </Typography>
               </Box>
               <Tooltip title="More options">
@@ -572,20 +583,24 @@ const AdminDashboardPage: React.FC = () => {
               </Tooltip>
             </Box>
             <ResponsiveContainer width="100%" height={280}>
-              {activityData.length > 0 ? (
-                <AreaChart data={activityData}>
+              {productionAnalytics?.deliveriesByDate && productionAnalytics.deliveriesByDate.length > 0 ? (
+                <AreaChart data={productionAnalytics.deliveriesByDate.slice(-7)}>
                 <defs>
-                  <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorDeliveries" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={colors.primary[500]} stopOpacity={0.3} />
                     <stop offset="95%" stopColor={colors.primary[500]} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.neutral[800]} />
                 <XAxis
-                  dataKey="name"
+                  dataKey="date"
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: colors.neutral[500], fontSize: 12 }}
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                  }}
                 />
                 <YAxis
                   axisLine={false}
@@ -601,20 +616,69 @@ const AdminDashboardPage: React.FC = () => {
                   }}
                   labelStyle={{ color: colors.neutral[100], fontWeight: 500 }}
                   itemStyle={{ color: colors.neutral[300] }}
+                  formatter={(value: any) => [value?.toLocaleString() || value, 'Total Amount']}
                 />
                 <Area
                   type="monotone"
-                  dataKey="tasks"
+                  dataKey="amount"
                   stroke={colors.primary[500]}
-                  fill="url(#colorTasks)"
+                  fill="url(#colorDeliveries)"
                   strokeWidth={2}
-                  name="Activity"
+                  name="Deliveries"
                 />
               </AreaChart>
               ) : (
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                   <Typography sx={{ color: colors.neutral[500], fontSize: '0.875rem' }}>
-                    No activity data available
+                    No delivery data available
+                  </Typography>
+                </Box>
+              )}
+            </ResponsiveContainer>
+          </Box>
+        </Grid>
+
+        {/* Groups Comparison Chart */}
+        <Grid item xs={12} lg={4}>
+          <Box
+            sx={{
+              backgroundColor: colors.neutral[900],
+              border: `1px solid ${colors.neutral[800]}`,
+              borderRadius: 3,
+              p: 3,
+            }}
+          >
+            <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 3 }}>
+              Top Groups Performance
+            </Typography>
+            <ResponsiveContainer width="100%" height={280}>
+              {groupsData.length > 0 ? (
+                <BarChart data={groupsData.slice(0, 5)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke={colors.neutral[800]} />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: colors.neutral[500], fontSize: 12 }} />
+                  <YAxis 
+                    type="category" 
+                    dataKey="group_name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: colors.neutral[500], fontSize: 11 }}
+                    width={80}
+                  />
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: colors.neutral[800],
+                      border: `1px solid ${colors.neutral[700]}`,
+                      borderRadius: 8,
+                    }}
+                    labelStyle={{ color: colors.neutral[100], fontWeight: 500 }}
+                    itemStyle={{ color: colors.neutral[300] }}
+                  />
+                  <Bar dataKey="total_amount" fill={colors.success[500]} radius={[0, 4, 4, 0]} name="Total Amount" />
+                </BarChart>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <Typography sx={{ color: colors.neutral[500], fontSize: '0.875rem' }}>
+                    No group data available
                   </Typography>
                 </Box>
               )}

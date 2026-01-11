@@ -23,6 +23,15 @@ import {
   Inventory,
   CalendarToday,
 } from '@mui/icons-material';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import PageContainer from '../../components/layout/PageContainer';
 import { StatCard } from '../../components/ui';
 import { colors } from '../../theme';
@@ -460,6 +469,60 @@ const AnalyticsPage: React.FC = () => {
                     No deliveries yet
                   </Typography>
                 )}
+              </Box>
+            </Grid>
+
+            {/* Groups Performance Chart */}
+            <Grid item xs={12}>
+              <Box
+                sx={{
+                  backgroundColor: colors.neutral[900],
+                  border: `1px solid ${colors.neutral[800]}`,
+                  borderRadius: 3,
+                  p: 3,
+                  mb: 3,
+                }}
+              >
+                <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.neutral[100], mb: 3 }}>
+                  Groups Performance Comparison
+                </Typography>
+                <ResponsiveContainer width="100%" height={250}>
+                  {groupsData.length > 0 ? (
+                    <BarChart data={groupsData.slice(0, 5)}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={colors.neutral[800]} />
+                      <XAxis
+                        dataKey="group_name"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: colors.neutral[500], fontSize: 11 }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: colors.neutral[500], fontSize: 12 }}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: colors.neutral[800],
+                          border: `1px solid ${colors.neutral[700]}`,
+                          borderRadius: 8,
+                        }}
+                        labelStyle={{ color: colors.neutral[100], fontWeight: 500 }}
+                        itemStyle={{ color: colors.neutral[300] }}
+                      />
+                      <Bar dataKey="total_amount" fill={colors.success[500]} radius={[4, 4, 0, 0]} name="Total Amount" />
+                    </BarChart>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <Typography sx={{ color: colors.neutral[500], fontSize: '0.875rem' }}>
+                        No group data available
+                      </Typography>
+                    </Box>
+                  )}
+                </ResponsiveContainer>
               </Box>
             </Grid>
 
