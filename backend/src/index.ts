@@ -113,17 +113,34 @@ const allowedOrigins = getAllowedOrigins();
 
 app.use(cors({
   origin: (origin, callback) => {
+    console.log('🔧 [DEBUG] CORS origin check - Request origin:', origin);
+    console.log('🔧 [DEBUG] CORS origin check - Allowed origins:', allowedOrigins);
+    console.log('🔧 [DEBUG] CORS origin check - NODE_ENV:', process.env.NODE_ENV);
+    console.log('🔧 [DEBUG] CORS origin check - FRONTEND_URL:', process.env.FRONTEND_URL);
+    
     // If wildcard is set (FRONTEND_URL not configured), allow all origins
     if (allowedOrigins.includes('*')) {
+      console.log('✅ [DEBUG] CORS: Wildcard detected, allowing all origins');
       return callback(null, true);
     }
     
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('✅ [DEBUG] CORS: No origin header, allowing request');
+      return callback(null, true);
+    }
     
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+    const originIndex = allowedOrigins.indexOf(origin);
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    console.log('🔧 [DEBUG] CORS: Origin index:', originIndex, 'isDevelopment:', isDevelopment);
+    
+    if (originIndex !== -1 || isDevelopment) {
+      console.log('✅ [DEBUG] CORS: Origin allowed');
       callback(null, true);
     } else {
+      console.error('❌ [DEBUG] CORS: Origin NOT allowed');
+      console.error('❌ [DEBUG] Request origin:', origin);
+      console.error('❌ [DEBUG] Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
